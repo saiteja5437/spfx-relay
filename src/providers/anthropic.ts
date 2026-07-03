@@ -94,6 +94,7 @@ export class AnthropicProvider implements ModelProvider {
     if (!parsed.ok) {
       throw new ProviderError('invalid-response', 'Anthropic response failed local schema validation.', {
         details: parsed.error,
+        raw: rawText,
       });
     }
     return { value: parsed.value, model: data.model ?? this.model, usage: usageOf(data.usage), rawText };

@@ -66,16 +66,19 @@ export class ProviderError extends Error {
   readonly retryable: boolean;
   /** Machine-consumable detail, e.g. schema-validation issues fed to the repair loop. */
   readonly details?: string;
+  /** The raw model output that failed validation — shown back to the model on repair. */
+  readonly raw?: string;
 
   constructor(
     kind: ProviderErrorKind,
     message: string,
-    options: { retryable?: boolean; details?: string; cause?: unknown } = {},
+    options: { retryable?: boolean; details?: string; raw?: string; cause?: unknown } = {},
   ) {
     super(message, options.cause !== undefined ? { cause: options.cause } : undefined);
     this.name = 'ProviderError';
     this.kind = kind;
     this.retryable = options.retryable ?? false;
     this.details = options.details;
+    this.raw = options.raw;
   }
 }

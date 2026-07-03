@@ -44,7 +44,7 @@ analyze ──▶ plan ──▶ transform ──▶ verify ──▶ report
 
 - [x] **Milestone 1** — project skeleton, IR contracts, deterministic analyzer, seeded corpus + eval test
 - [x] **Milestone 2** — `ModelProvider` interface + hand-rolled Anthropic (SSE) and Ollama (NDJSON) adapters over raw HTTP, with local Zod validation and typed errors
-- [ ] Milestone 3 — plan + transform stages (sealed LLM steps, repair loop)
+- [x] **Milestone 3** — pipeline core: response cache (bit-identical reruns), sealed step runner with bounded repair loop, run manifest, deterministic plan stage, transform stage with byte-stable context packets
 - [ ] Milestone 4 — verify stage (tsc/ESLint gates, final `gulp bundle` seal) + report
 - [ ] Milestone 5 — eval harness metrics (compile rate, flag precision/recall, refusal correctness, cost/latency per model)
 

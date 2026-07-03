@@ -75,6 +75,7 @@ export class OllamaProvider implements ModelProvider {
     if (!parsed.ok) {
       throw new ProviderError('invalid-response', 'Ollama response failed local schema validation.', {
         details: parsed.error,
+        raw: rawText,
       });
     }
     return { value: parsed.value, model: data.model ?? this.config.model, usage: usageOf(data), rawText };
