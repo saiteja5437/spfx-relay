@@ -31,6 +31,7 @@ Rules:
 - Keep the original CSS class names and ids on the JSX elements. Import each legacy stylesheet by its original filename (e.g. \`import './styles.css';\`) — the files are copied next to the component.
 - Network calls use the browser fetch API.
 - The component file must export the component as its default export and compile standalone under TypeScript strict mode, with only 'react' and the stylesheet files as imports.
+- Hardcoded secrets flagged in the prompt must NEVER appear in the component — not in code, not in comments. Replace the value with a placeholder constant (e.g. \`const API_KEY = 'REPLACE_WITH_SECURE_CONFIGURATION';\`) and add an 'unhandled' entry telling the developer to supply it from secure configuration.
 - Anything you cannot faithfully map goes in the 'unhandled' list — never invent an approximation silently. Every judgment call you do make goes in 'assumptions'.
 
 Respond with ONLY JSON matching the provided schema.`;
