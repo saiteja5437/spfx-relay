@@ -1,0 +1,20 @@
+{
+  "ir": {
+    "assets": [
+      { "kind": "stylesheet", "path": "styles.css", "file": "index.html", "line": 5, "external": false, "exists": true },
+      { "kind": "image", "path": "logo.svg", "file": "index.html", "line": 9, "external": false, "exists": true },
+      { "kind": "script", "path": "app.js", "file": "index.html", "line": 14, "external": false, "exists": true }
+    ],
+    "domOperations": [
+      { "api": "dom", "method": "getElementById", "target": "load-button", "file": "app.js", "line": 1 },
+      { "api": "dom", "method": "getElementById", "target": "greeting-output", "file": "app.js", "line": 4 }
+    ],
+    "eventHandlers": [
+      { "via": "addEventListener", "event": "click", "target": "button", "file": "app.js", "line": 3 }
+    ],
+    "networkCalls": [],
+    "dependencies": []
+  },
+  "findings": [],
+  "refusals": []
+}

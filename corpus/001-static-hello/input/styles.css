@@ -1,0 +1,10 @@
+#greeting-box {
+  font-family: 'Segoe UI', sans-serif;
+  padding: 16px;
+  border: 1px solid #ddd;
+}
+
+#greeting-output {
+  color: #0078d4;
+  font-weight: 600;
+}
