@@ -5,3 +5,4 @@ export * from './plan';
 export * from './prompts';
 export * from './context';
 export * from './transform';
+export * from './verifiedTransform';

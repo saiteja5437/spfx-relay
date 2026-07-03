@@ -1,0 +1,21 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
+  "id": "__WEBPART_GUID__",
+  "alias": "__COMPONENT_NAME__WebPart",
+  "componentType": "WebPart",
+  "version": "*",
+  "manifestVersion": 2,
+  "requiresCustomScript": false,
+  "supportedHosts": ["SharePointWebPart", "SharePointFullPage"],
+  "supportsThemeVariants": true,
+  "preconfiguredEntries": [
+    {
+      "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
+      "group": { "default": "Advanced" },
+      "title": { "default": "__COMPONENT_TITLE__" },
+      "description": { "default": "Migrated from a legacy Script Editor web part by spfx-relay." },
+      "officeFabricIconFontName": "Page",
+      "properties": {}
+    }
+  ]
+}

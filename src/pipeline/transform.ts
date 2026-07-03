@@ -28,6 +28,8 @@ export interface TransformArgs {
   plan: MigrationPlan;
   analysis: AnalysisResult;
   sources: SourceFile[];
+  /** Verification feedback from a failed previous attempt (compile-repair loop). */
+  feedback?: string;
   cache?: ResponseCache;
   manifest?: RunManifest;
   maxTokens?: number;
@@ -41,6 +43,7 @@ export async function runTransform(args: TransformArgs): Promise<ProviderResult<
     plan: args.plan,
     analysis: args.analysis,
     sources: args.sources,
+    feedback: args.feedback,
     maxChars: args.maxContextChars,
   });
 

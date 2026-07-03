@@ -49,6 +49,8 @@ export function buildTransformContext(args: {
   plan: MigrationPlan;
   analysis: AnalysisResult;
   sources: SourceFile[];
+  /** Verification feedback from a failed previous attempt — drives the compile-repair loop. */
+  feedback?: string;
   maxChars?: number;
 }): TransformContext {
   const { plan, analysis } = args;
@@ -77,6 +79,10 @@ export function buildTransformContext(args: {
   sections.push('', '## Legacy source files');
   for (const source of sources) {
     sections.push('', `### ${source.path}`, '```', source.content, '```');
+  }
+
+  if (args.feedback) {
+    sections.push('', '## Previous attempt failed verification', args.feedback);
   }
 
   sections.push(

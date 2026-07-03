@@ -27,9 +27,10 @@ Rules:
 - No jQuery and no direct DOM manipulation. Express all state with React hooks (useState/useEffect) and all DOM structure as JSX.
 - Preserve the legacy behavior exactly as written. Do not add features, do not add error handling for scenarios the original code cannot reach, do not restyle.
 - Convert element lookups and mutations into React state; convert event bindings (addEventListener, jQuery handlers, inline on* attributes) into JSX event props.
-- Keep the original CSS class names and ids on the JSX elements; the stylesheet is migrated separately and will be imported as './styles.css' — include that import.
+- Import React with \`import * as React from 'react';\` — the SPFx toolchain does not enable esModuleInterop, so a default import will not compile.
+- Keep the original CSS class names and ids on the JSX elements. Import each legacy stylesheet by its original filename (e.g. \`import './styles.css';\`) — the files are copied next to the component.
 - Network calls use the browser fetch API.
-- The component file must export the component as its default export and compile standalone with only 'react' and './styles.css' as imports.
+- The component file must export the component as its default export and compile standalone under TypeScript strict mode, with only 'react' and the stylesheet files as imports.
 - Anything you cannot faithfully map goes in the 'unhandled' list — never invent an approximation silently. Every judgment call you do make goes in 'assumptions'.
 
 Respond with ONLY JSON matching the provided schema.`;
