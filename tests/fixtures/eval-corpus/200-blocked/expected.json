@@ -1,0 +1,22 @@
+{
+  "ir": {
+    "assets": [
+      { "kind": "script", "path": "https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid.min.js", "file": "index.html", "line": 4, "external": true, "exists": null }
+    ],
+    "domOperations": [],
+    "eventHandlers": [],
+    "networkCalls": [],
+    "dependencies": [
+      { "name": "ag-grid", "source": "https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid.min.js", "file": "index.html", "line": 4, "supported": false }
+    ]
+  },
+  "findings": [],
+  "refusals": [
+    {
+      "construct": "external-plugin",
+      "reason": "External library 'ag-grid' (https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid.min.js) is not supported in v1 — this dependency requires manual migration.",
+      "file": "index.html",
+      "line": 4
+    }
+  ]
+}

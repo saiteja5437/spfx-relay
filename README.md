@@ -46,20 +46,35 @@ analyze ──▶ plan ──▶ transform ──▶ verify ──▶ report
 - [x] **Milestone 2** — `ModelProvider` interface + hand-rolled Anthropic (SSE) and Ollama (NDJSON) adapters over raw HTTP, with local Zod validation and typed errors
 - [x] **Milestone 3** — pipeline core: response cache (bit-identical reruns), sealed step runner with bounded repair loop, run manifest, deterministic plan stage, transform stage with byte-stable context packets
 - [x] **Milestone 4** — verify gates (strict tsc + ESLint driving a compile-repair loop), SPFx scaffold emit with deterministic GUIDs, best-effort `gulp bundle` seal, markdown migration report, and the `spfx-relay migrate` CLI with plan approval
-- [ ] Milestone 5 — eval harness metrics (compile rate, flag precision/recall, refusal correctness, cost/latency per model)
+- [x] **Milestone 5** — eval harness: 5-item corpus across difficulty tiers, per-model scorecard (compile rate, repair attempts, refusal correctness, content checks, tokens, latency) via `spfx-relay eval`
+
+## Usage
+
+```sh
+# Migrate a legacy web part (prints the plan, waits for approval; --yes to skip)
+npm run cli -- migrate ./legacy-folder --out ./webpart --provider ollama --model gemma4:31b-cloud
+
+# Score a model against the corpus
+npm run cli -- eval --provider ollama --model gemma4:31b-cloud
+```
+
+Providers: `anthropic` (set `ANTHROPIC_API_KEY`) or `ollama` (local — nothing leaves the
+machine with a local model; note that Ollama `:cloud` models are hosted and do send the
+prompt off-machine, so use a truly local model for sensitive code).
 
 ## Development
 
 ```sh
 npm install
-npm test        # runs unit tests + the corpus eval
+npm test        # runs unit tests + the corpus conformance suite (offline, no keys)
 npm run typecheck
 npm run lint
 ```
 
 The eval corpus lives in `corpus/` — each item is an `input/` folder (a synthetic legacy
-web part) plus an `expected.json` ground-truth file. The analyzer's output must match
-exactly; determinism is asserted, not hoped for.
+web part), an `expected.json` ground-truth file the analyzer must match exactly, and an
+optional `eval.json` with content checks for the generated component. Determinism is
+asserted, not hoped for; `spfx-relay eval` scores models against the same corpus.
 
 ## License
 

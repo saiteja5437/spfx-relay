@@ -1,0 +1,3 @@
+{
+  "componentMustContain": ["count-value", "increment-button", "reset-button"]
+}

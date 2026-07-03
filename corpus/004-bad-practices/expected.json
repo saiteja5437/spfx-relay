@@ -1,0 +1,34 @@
+{
+  "ir": {
+    "assets": [
+      { "kind": "stylesheet", "path": "theme.css", "file": "index.html", "line": 5, "external": false, "exists": true },
+      { "kind": "stylesheet", "path": "missing.css", "file": "index.html", "line": 6, "external": false, "exists": false },
+      { "kind": "script", "path": "weather.js", "file": "index.html", "line": 13, "external": false, "exists": true }
+    ],
+    "domOperations": [
+      { "api": "dom", "method": "getElementById", "target": "weather-output", "file": "weather.js", "line": 2 }
+    ],
+    "eventHandlers": [],
+    "networkCalls": [
+      { "api": "fetch", "url": null, "file": "weather.js", "line": 4 }
+    ],
+    "dependencies": []
+  },
+  "findings": [
+    {
+      "rule": "broken-asset-reference",
+      "severity": "error",
+      "message": "Referenced stylesheet 'missing.css' does not exist in the input folder.",
+      "file": "index.html",
+      "line": 6
+    },
+    {
+      "rule": "hardcoded-secret",
+      "severity": "error",
+      "message": "Possible hardcoded secret 'apiKey' = \"wx-s…\" — secrets must never ship in front-end code; move this server-side or behind a secured API.",
+      "file": "weather.js",
+      "line": 1
+    }
+  ],
+  "refusals": []
+}

@@ -1,0 +1,11 @@
+#counter-box {
+  font-family: 'Segoe UI', sans-serif;
+  border: 1px solid #ccc;
+  padding: 12px;
+}
+
+#count-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0078d4;
+}

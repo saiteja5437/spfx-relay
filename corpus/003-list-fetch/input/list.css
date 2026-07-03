@@ -1,0 +1,14 @@
+#tasks-box {
+  font-family: 'Segoe UI', sans-serif;
+  max-width: 420px;
+}
+
+#tasks-list li {
+  padding: 4px 0;
+  border-bottom: 1px dotted #ddd;
+}
+
+#status-line {
+  color: #666;
+  font-style: italic;
+}

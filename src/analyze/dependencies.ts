@@ -10,8 +10,10 @@ export interface LibraryMatch {
   supported: boolean;
 }
 
+// Order matters: specific plugins BEFORE jquery core, because plugin filenames
+// often contain 'jquery' (jquery.dataTables.min.js). The jquery pattern itself
+// only matches core distribution filenames, never jquery.<plugin>.js.
 const REGISTRY: ReadonlyArray<{ pattern: RegExp; name: string; supported: boolean }> = [
-  { pattern: /jquery/i, name: 'jquery', supported: true },
   { pattern: /ag-grid/i, name: 'ag-grid', supported: false },
   { pattern: /devextreme|dx\.all/i, name: 'devextreme', supported: false },
   { pattern: /datatables/i, name: 'datatables', supported: false },
@@ -19,6 +21,7 @@ const REGISTRY: ReadonlyArray<{ pattern: RegExp; name: string; supported: boolea
   { pattern: /knockout/i, name: 'knockout', supported: false },
   { pattern: /bootstrap/i, name: 'bootstrap', supported: false },
   { pattern: /moment(\.min)?\.js/i, name: 'moment', supported: false },
+  { pattern: /(^|\/)jquery([.-][\d.]+)?(\.slim)?(\.min)?\.js/i, name: 'jquery', supported: true },
 ];
 
 export function classifyExternalScript(url: string): LibraryMatch {

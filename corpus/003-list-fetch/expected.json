@@ -1,0 +1,26 @@
+{
+  "ir": {
+    "assets": [
+      { "kind": "stylesheet", "path": "list.css", "file": "index.html", "line": 5, "external": false, "exists": true },
+      { "kind": "script", "path": "https://code.jquery.com/jquery-3.6.0.min.js", "file": "index.html", "line": 6, "external": true, "exists": null },
+      { "kind": "script", "path": "list.js", "file": "index.html", "line": 15, "external": false, "exists": true }
+    ],
+    "domOperations": [
+      { "api": "jquery", "method": "text", "target": "#status-line", "file": "list.js", "line": 2 },
+      { "api": "jquery", "method": "empty", "target": "#tasks-list", "file": "list.js", "line": 14 },
+      { "api": "jquery", "method": "append", "target": "#tasks-list", "file": "list.js", "line": 16 },
+      { "api": "jquery", "method": "text", "target": "#status-line", "file": "list.js", "line": 18 }
+    ],
+    "eventHandlers": [
+      { "via": "jquery", "event": "click", "target": "#refresh-button", "file": "list.js", "line": 1 }
+    ],
+    "networkCalls": [
+      { "api": "jquery-ajax", "url": "/_api/web/lists/getbytitle('Tasks')/items", "file": "list.js", "line": 3 }
+    ],
+    "dependencies": [
+      { "name": "jquery", "source": "https://code.jquery.com/jquery-3.6.0.min.js", "file": "index.html", "line": 6, "supported": true }
+    ]
+  },
+  "findings": [],
+  "refusals": []
+}

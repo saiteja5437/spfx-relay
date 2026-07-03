@@ -1,0 +1,28 @@
+{
+  "ir": {
+    "assets": [
+      { "kind": "stylesheet", "path": "grid.css", "file": "index.html", "line": 5, "external": false, "exists": true },
+      { "kind": "script", "path": "https://code.jquery.com/jquery-3.6.0.min.js", "file": "index.html", "line": 6, "external": true, "exists": null },
+      { "kind": "script", "path": "https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js", "file": "index.html", "line": 7, "external": true, "exists": null },
+      { "kind": "script", "path": "grid.js", "file": "index.html", "line": 11, "external": false, "exists": true }
+    ],
+    "domOperations": [
+      { "api": "jquery", "method": "DataTable", "target": "#orders-table", "file": "grid.js", "line": 1 }
+    ],
+    "eventHandlers": [],
+    "networkCalls": [],
+    "dependencies": [
+      { "name": "jquery", "source": "https://code.jquery.com/jquery-3.6.0.min.js", "file": "index.html", "line": 6, "supported": true },
+      { "name": "datatables", "source": "https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js", "file": "index.html", "line": 7, "supported": false }
+    ]
+  },
+  "findings": [],
+  "refusals": [
+    {
+      "construct": "external-plugin",
+      "reason": "External library 'datatables' (https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js) is not supported in v1 — this dependency requires manual migration.",
+      "file": "index.html",
+      "line": 7
+    }
+  ]
+}

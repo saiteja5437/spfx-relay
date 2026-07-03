@@ -1,0 +1,4 @@
+{
+  "componentMustContain": ["weather-output"],
+  "componentMustNotContain": ["wx-secret-12345"]
+}

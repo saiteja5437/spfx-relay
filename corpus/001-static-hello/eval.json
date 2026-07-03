@@ -1,0 +1,3 @@
+{
+  "componentMustContain": ["greeting-output", "load-button", "Load greeting"]
+}

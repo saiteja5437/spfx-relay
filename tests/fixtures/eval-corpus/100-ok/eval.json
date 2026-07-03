@@ -1,0 +1,4 @@
+{
+  "componentMustContain": ["hello-box"],
+  "componentMustNotContain": ["jQuery"]
+}

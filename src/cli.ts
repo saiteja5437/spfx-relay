@@ -4,6 +4,8 @@ import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
 import { analyzeWebPart } from './analyze/index';
 import { emitProject } from './emit/index';
+import { runEval } from './eval/index';
+import { renderEvalMarkdown } from './eval/render';
 import { FileResponseCache, type ResponseCache } from './pipeline/cache';
 import { loadSourceFiles } from './pipeline/context';
 import { RunManifest } from './pipeline/manifest';
@@ -21,7 +23,7 @@ import { runBundleSeal, type BundleResult } from './verify/bundle';
  * failed verification still produces a report — the tool never exits silently.
  */
 
-export interface CliOptions {
+export interface MigrateOptions {
   command: 'migrate';
   input: string;
   out: string;
@@ -35,6 +37,16 @@ export interface CliOptions {
   force: boolean;
 }
 
+export interface EvalOptions {
+  command: 'eval';
+  provider: 'anthropic' | 'ollama';
+  model?: string;
+  corpus: string;
+  noCache: boolean;
+}
+
+export type CliOptions = MigrateOptions | EvalOptions;
+
 export function parseCliArgs(argv: string[]): CliOptions {
   const { values, positionals } = parseArgs({
     args: argv,
@@ -44,6 +56,7 @@ export function parseCliArgs(argv: string[]): CliOptions {
       provider: { type: 'string', default: 'anthropic' },
       model: { type: 'string' },
       name: { type: 'string' },
+      corpus: { type: 'string', default: 'corpus' },
       yes: { type: 'boolean', default: false },
       'no-cache': { type: 'boolean', default: false },
       'skip-bundle': { type: 'boolean', default: false },
@@ -52,12 +65,27 @@ export function parseCliArgs(argv: string[]): CliOptions {
   });
 
   const [command, input] = positionals;
-  if (command !== 'migrate') throw new Error(`Unknown command '${command ?? ''}' — usage: spfx-relay migrate <input> --out <dir>`);
-  if (!input) throw new Error('Missing <input>: the folder containing the legacy web part (index.html + assets).');
-  if (!values.out) throw new Error('Missing --out: the folder to emit the SPFx project into.');
   if (values.provider !== 'anthropic' && values.provider !== 'ollama') {
     throw new Error(`Unknown provider '${values.provider}' — supported: anthropic, ollama.`);
   }
+
+  if (command === 'eval') {
+    return {
+      command: 'eval',
+      provider: values.provider,
+      model: values.model,
+      corpus: values.corpus,
+      noCache: values['no-cache'],
+    };
+  }
+
+  if (command !== 'migrate') {
+    throw new Error(
+      `Unknown command '${command ?? ''}' — usage: spfx-relay migrate <input> --out <dir> | spfx-relay eval [--corpus <dir>]`,
+    );
+  }
+  if (!input) throw new Error('Missing <input>: the folder containing the legacy web part (index.html + assets).');
+  if (!values.out) throw new Error('Missing --out: the folder to emit the SPFx project into.');
 
   return {
     command: 'migrate',
@@ -88,7 +116,10 @@ export function migrationNameFrom(inputDir: string): string {
   return basename(dir);
 }
 
-export function providerConfigFrom(options: CliOptions, env: NodeJS.ProcessEnv): ProviderConfig {
+export function providerConfigFrom(
+  options: Pick<EvalOptions, 'provider' | 'model'>,
+  env: NodeJS.ProcessEnv,
+): ProviderConfig {
   if (options.provider === 'anthropic') {
     return {
       provider: 'anthropic',
@@ -139,6 +170,7 @@ function writeRunArtifacts(outDir: string, report: ReportArgs, manifest: RunMani
 
 export async function main(argv: string[]): Promise<number> {
   const options = parseCliArgs(argv);
+  if (options.command === 'eval') return runEvalCommand(options);
   const inputDir = resolve(options.input);
   const outDir = resolve(options.out);
 
@@ -229,6 +261,37 @@ export async function main(argv: string[]): Promise<number> {
   );
 
   return bundle.status === 'failed' ? 4 : 0;
+}
+
+async function runEvalCommand(options: EvalOptions): Promise<number> {
+  const corpusDir = resolve(options.corpus);
+  if (!existsSync(corpusDir)) {
+    console.error(`Corpus folder not found: ${corpusDir}`);
+    return 1;
+  }
+
+  const provider = createProvider(providerConfigFrom(options, process.env));
+  const caps = provider.capabilities();
+  console.log(`Evaluating corpus at ${corpusDir} against ${caps.name}/${caps.model} …`);
+
+  const run = await runEval({
+    provider,
+    corpusDir,
+    cache: options.noCache ? undefined : new FileResponseCache(join(process.cwd(), '.spfx-relay', 'cache')),
+    onProgress: (message) => console.log(`  ${message}`),
+  });
+
+  const markdown = renderEvalMarkdown(run);
+  console.log(`\n${markdown}`);
+
+  const resultsDir = join(process.cwd(), 'eval-results');
+  mkdirSync(resultsDir, { recursive: true });
+  const fileStem = `${run.provider}-${run.model.replace(/[^a-z0-9.-]+/gi, '_')}`;
+  writeFileSync(join(resultsDir, `${fileStem}.json`), JSON.stringify(run, null, 2));
+  writeFileSync(join(resultsDir, `${fileStem}.md`), markdown);
+  console.log(`Results written to eval-results/${fileStem}.{json,md}`);
+
+  return 0;
 }
 
 // Invoked directly (tsx src/cli.ts …), not when imported by tests.

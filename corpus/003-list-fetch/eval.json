@@ -1,0 +1,3 @@
+{
+  "componentMustContain": ["tasks-list", "refresh-button", "status-line", "fetch("]
+}

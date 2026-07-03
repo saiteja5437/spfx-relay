@@ -1,0 +1,23 @@
+{
+  "ir": {
+    "assets": [
+      { "kind": "stylesheet", "path": "counter.css", "file": "index.html", "line": 5, "external": false, "exists": true },
+      { "kind": "script", "path": "https://code.jquery.com/jquery-3.6.0.min.js", "file": "index.html", "line": 6, "external": true, "exists": null },
+      { "kind": "script", "path": "counter.js", "file": "index.html", "line": 15, "external": false, "exists": true }
+    ],
+    "domOperations": [
+      { "api": "jquery", "method": "text", "target": "#count-value", "file": "counter.js", "line": 5 },
+      { "api": "jquery", "method": "text", "target": "#count-value", "file": "counter.js", "line": 10 }
+    ],
+    "eventHandlers": [
+      { "via": "jquery", "event": "click", "target": "#increment-button", "file": "counter.js", "line": 3 },
+      { "via": "html-attribute", "event": "click", "target": "reset-button", "file": "index.html", "line": 13 }
+    ],
+    "networkCalls": [],
+    "dependencies": [
+      { "name": "jquery", "source": "https://code.jquery.com/jquery-3.6.0.min.js", "file": "index.html", "line": 6, "supported": true }
+    ]
+  },
+  "findings": [],
+  "refusals": []
+}

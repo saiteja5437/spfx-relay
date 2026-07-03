@@ -33,10 +33,18 @@ describe('parseCliArgs', () => {
 
   it('defaults to anthropic with approval and cache enabled', () => {
     const options = parseCliArgs(['migrate', './legacy', '--out', './webpart']);
-    expect(options.provider).toBe('anthropic');
-    expect(options.yes).toBe(false);
-    expect(options.noCache).toBe(false);
-    expect(options.skipBundle).toBe(false);
+    expect(options).toMatchObject({ provider: 'anthropic', yes: false, noCache: false, skipBundle: false });
+  });
+
+  it('parses an eval invocation with its own defaults', () => {
+    expect(parseCliArgs(['eval', '--provider', 'ollama', '--model', 'gemma4:31b-cloud'])).toEqual({
+      command: 'eval',
+      provider: 'ollama',
+      model: 'gemma4:31b-cloud',
+      corpus: 'corpus',
+      noCache: false,
+    });
+    expect(parseCliArgs(['eval'])).toMatchObject({ command: 'eval', provider: 'anthropic', corpus: 'corpus' });
   });
 
   it('rejects missing input, missing --out, unknown command, unknown provider', () => {
@@ -61,7 +69,7 @@ describe('migrationNameFrom', () => {
 
   it('accepts an explicit --name option in parsing', () => {
     const options = parseCliArgs(['migrate', './x', '--out', './y', '--name', 'TeamDirectory']);
-    expect(options.name).toBe('TeamDirectory');
+    expect(options).toMatchObject({ name: 'TeamDirectory' });
   });
 });
 

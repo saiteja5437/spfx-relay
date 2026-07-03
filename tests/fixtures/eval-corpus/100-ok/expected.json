@@ -1,0 +1,15 @@
+{
+  "ir": {
+    "assets": [
+      { "kind": "script", "path": "app.js", "file": "index.html", "line": 5, "external": false, "exists": true }
+    ],
+    "domOperations": [
+      { "api": "dom", "method": "getElementById", "target": "hello-box", "file": "app.js", "line": 1 }
+    ],
+    "eventHandlers": [],
+    "networkCalls": [],
+    "dependencies": []
+  },
+  "findings": [],
+  "refusals": []
+}
