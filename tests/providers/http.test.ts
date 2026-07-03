@@ -87,13 +87,30 @@ describe('fetchWithRetry', () => {
     expect(calls).toHaveLength(1);
   });
 
-  it('maps an aborted request to a retryable timeout ProviderError', async () => {
+  it('fails fast on timeout without retrying — even with retries configured', async () => {
+    let callCount = 0;
+    const counting: typeof fetch = (input, init) => {
+      callCount++;
+      return hangingFetch()(input, init);
+    };
     const promise = fetchWithRetry(
       'https://x.test/',
       {},
-      { fetchFn: hangingFetch(), maxRetries: 0, timeoutMs: 20 },
+      { fetchFn: counting, maxRetries: 2, timeoutMs: 20, baseDelayMs: 1 },
     );
-    await expect(promise).rejects.toMatchObject({ name: 'ProviderError', kind: 'timeout', retryable: true });
+    await expect(promise).rejects.toMatchObject({ name: 'ProviderError', kind: 'timeout', retryable: false });
+    expect(callCount).toBe(1);
+  });
+
+  it('retries fast connection failures before giving up', async () => {
+    let callCount = 0;
+    const flaky: typeof fetch = () => {
+      callCount++;
+      return callCount < 3 ? Promise.reject(new TypeError('ECONNREFUSED')) : Promise.resolve(jsonResponse({ ok: true }));
+    };
+    const response = await fetchWithRetry('https://x.test/', {}, { fetchFn: flaky, maxRetries: 2, baseDelayMs: 1 });
+    expect(response.status).toBe(200);
+    expect(callCount).toBe(3);
   });
 
   it('maps a network failure to a retryable network ProviderError', async () => {

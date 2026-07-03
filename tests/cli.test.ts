@@ -1,5 +1,6 @@
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parseCliArgs, providerConfigFrom } from '../src/cli';
+import { migrationNameFrom, parseCliArgs, providerConfigFrom } from '../src/cli';
 
 describe('parseCliArgs', () => {
   it('parses a full migrate invocation', () => {
@@ -45,6 +46,22 @@ describe('parseCliArgs', () => {
     expect(() => parseCliArgs(['migrate', './legacy', '--out', 'x', '--provider', 'openai'])).toThrowError(
       /Unknown provider/,
     );
+  });
+});
+
+describe('migrationNameFrom', () => {
+  it('uses the folder name directly when it is descriptive', () => {
+    expect(migrationNameFrom(join('c:', 'work', 'team-directory'))).toBe('team-directory');
+  });
+
+  it('skips generic layout folder names like input/ and src/', () => {
+    expect(migrationNameFrom(join('c:', 'corpus', '001-static-hello', 'input'))).toBe('001-static-hello');
+    expect(migrationNameFrom(join('c:', 'legacy-widget', 'src'))).toBe('legacy-widget');
+  });
+
+  it('accepts an explicit --name option in parsing', () => {
+    const options = parseCliArgs(['migrate', './x', '--out', './y', '--name', 'TeamDirectory']);
+    expect(options.name).toBe('TeamDirectory');
   });
 });
 

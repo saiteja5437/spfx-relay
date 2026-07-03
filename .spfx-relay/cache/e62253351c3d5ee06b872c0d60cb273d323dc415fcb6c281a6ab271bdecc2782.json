@@ -1,0 +1,17 @@
+{
+  "rawText": "```json\n{\n  \"componentCode\": \"import * as React from 'react';\\nimport './styles.css';\\n\\nexport default function StaticHello(): React.JSX.Element {\\n  const [greeting, setGreeting] = React.useState<string>('');\\n\\n  const handleButtonClick = (): void => {\\n    setGreeting('Hello from the legacy web part!');\\n  };\\n\\n  return (\\n    <div id=\\\"greeting-box\\\">\\n      <img src=\\\"logo.svg\\\" alt=\\\"Team logo\\\" />\\n      <h2 id=\\\"greeting-title\\\">Team Directory</h2>\\n      <button id=\\\"load-button\\\" onClick={handleButtonClick}>\\n        Load greeting\\n      </button>\\n      <p id=\\\"greeting-output\\\">{greeting}</p>\\n    </div>\\n  );\\n}\",\n  \"componentDescription\": \"A React functional component migrating a legacy Script Editor web part. It maintains a state for the greeting text, updated via a button click, and preserves all original HTML IDs and CSS class names.\",\n  \"assumptions\": [\n    \"Assumed logo.svg is available in the same relative path as the component's output directory, consistent with the legacy local asset structure.\",\n    \"Mapped the legacy DOM mutation of 'greeting-output' textContent to a React state variable named 'greeting'.\"\n  ],\n  \"unhandled\": []\n}\n```",
+  "value": {
+    "componentCode": "import * as React from 'react';\nimport './styles.css';\n\nexport default function StaticHello(): React.JSX.Element {\n  const [greeting, setGreeting] = React.useState<string>('');\n\n  const handleButtonClick = (): void => {\n    setGreeting('Hello from the legacy web part!');\n  };\n\n  return (\n    <div id=\"greeting-box\">\n      <img src=\"logo.svg\" alt=\"Team logo\" />\n      <h2 id=\"greeting-title\">Team Directory</h2>\n      <button id=\"load-button\" onClick={handleButtonClick}>\n        Load greeting\n      </button>\n      <p id=\"greeting-output\">{greeting}</p>\n    </div>\n  );\n}",
+    "componentDescription": "A React functional component migrating a legacy Script Editor web part. It maintains a state for the greeting text, updated via a button click, and preserves all original HTML IDs and CSS class names.",
+    "assumptions": [
+      "Assumed logo.svg is available in the same relative path as the component's output directory, consistent with the legacy local asset structure.",
+      "Mapped the legacy DOM mutation of 'greeting-output' textContent to a React state variable named 'greeting'."
+    ],
+    "unhandled": []
+  },
+  "model": "gemma4:31b",
+  "usage": {
+    "inputTokens": 1404,
+    "outputTokens": 309
+  }
+}

@@ -46,16 +46,18 @@ export async function fetchWithRetry(
       }
       return response;
     } catch (error) {
-      const timedOut = controller.signal.aborted;
+      // Timeouts are never retried here: a request that needed the full budget
+      // will need it again, and the caller's budget would silently multiply.
+      // Fast connection failures (refused, DNS) are worth retrying.
+      if (controller.signal.aborted) {
+        throw new ProviderError('timeout', `Request timed out after ${timeoutMs}ms: ${url}`, {
+          retryable: false,
+          cause: error,
+        });
+      }
       if (attempt < maxRetries) {
         await sleep(baseDelayMs * 2 ** attempt);
         continue;
-      }
-      if (timedOut) {
-        throw new ProviderError('timeout', `Request timed out after ${timeoutMs}ms: ${url}`, {
-          retryable: true,
-          cause: error,
-        });
       }
       throw new ProviderError('network', `Network error calling ${url}`, {
         retryable: true,

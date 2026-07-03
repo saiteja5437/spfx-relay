@@ -20,6 +20,10 @@ import {
  */
 
 const DEFAULT_BASE_URL = 'http://localhost:11434';
+// Local models cold-load into memory and generate on consumer hardware —
+// minutes, not seconds. Timeouts are never retried (see fetchWithRetry), so a
+// generous budget here costs nothing when things go well.
+const DEFAULT_TIMEOUT_MS = 15 * 60 * 1000;
 
 export interface OllamaConfig {
   model: string;
@@ -133,7 +137,7 @@ export class OllamaProvider implements ModelProvider {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(body),
         },
-        this.config.http,
+        { timeoutMs: DEFAULT_TIMEOUT_MS, ...this.config.http },
       );
     } catch (error) {
       if (error instanceof ProviderError && error.kind === 'network') {

@@ -27,6 +27,8 @@ export interface CliOptions {
   out: string;
   provider: 'anthropic' | 'ollama';
   model?: string;
+  /** Component name override; otherwise derived from the input folder. */
+  name?: string;
   yes: boolean;
   noCache: boolean;
   skipBundle: boolean;
@@ -41,6 +43,7 @@ export function parseCliArgs(argv: string[]): CliOptions {
       out: { type: 'string' },
       provider: { type: 'string', default: 'anthropic' },
       model: { type: 'string' },
+      name: { type: 'string' },
       yes: { type: 'boolean', default: false },
       'no-cache': { type: 'boolean', default: false },
       'skip-bundle': { type: 'boolean', default: false },
@@ -62,11 +65,27 @@ export function parseCliArgs(argv: string[]): CliOptions {
     out: values.out,
     provider: values.provider,
     model: values.model,
+    name: values.name,
     yes: values.yes,
     noCache: values['no-cache'],
     skipBundle: values['skip-bundle'],
     force: values.force,
   };
+}
+
+/**
+ * Derives the migration name from the input path, skipping generic folder
+ * names ('input', 'src', 'source') that describe layout rather than the web part.
+ */
+export function migrationNameFrom(inputDir: string): string {
+  const generic = new Set(['input', 'src', 'source', 'legacy']);
+  let dir = inputDir;
+  while (generic.has(basename(dir).toLowerCase())) {
+    const parent = resolve(dir, '..');
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return basename(dir);
 }
 
 export function providerConfigFrom(options: CliOptions, env: NodeJS.ProcessEnv): ProviderConfig {
@@ -139,7 +158,7 @@ export async function main(argv: string[]): Promise<number> {
 
   console.log(`Analyzing ${inputDir} …`);
   const analysis = analyzeWebPart(inputDir);
-  const plan = buildPlan({ analysis, name: basename(inputDir) });
+  const plan = buildPlan({ analysis, name: options.name ?? migrationNameFrom(inputDir) });
   printPlan(plan);
 
   if (plan.blocked) {
