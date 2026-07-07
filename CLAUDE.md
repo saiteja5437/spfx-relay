@@ -78,7 +78,13 @@ Anthropic adapter is fully tested offline but has not had a live run yet
    user-approved mappings (same plugin via React wrapper vs recommended replacement),
    with version + license metadata (ag-Grid/DevExtreme are commercial — flag it). The
    plan-approval step is the designed interaction point.
-3. **v3 — multi-web-part decomposition; v4 — more targets/providers (OpenAI/Azure).**
-4. CI pipeline (GitHub Actions: typecheck + test + lint) — everything is offline-safe.
-5. Analyzer blind spot: property-style DOM mutations (`el.textContent = …`) aren't in
+3. **v3 — multi-web-part decomposition + SPA strategy.** DO NOT design this from
+   scratch: a complete execution blueprint exists in `docs/v3/` (authored by a
+   stronger model; decisions are settled there). Start at `docs/v3/README.md`, then
+   `STATE.md` for the next step. The judgment-dense core is already built and tested:
+   `src/analyze/coupling.ts`, `StrategySchema` in plan.ts, fixtures + 7 ground-truth
+   tests in `tests/analyze/coupling.test.ts`.
+4. **v4 — more providers (OpenAI/Azure):** see `docs/v3/V4.md` (short by design).
+5. CI pipeline (GitHub Actions: typecheck + test + lint) — everything is offline-safe.
+6. Analyzer blind spot: property-style DOM mutations (`el.textContent = …`) aren't in
    the IR (documented in src/analyze/script.ts).

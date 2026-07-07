@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { CouplingReport } from '../analyze/coupling';
 import { FindingSchema, RefusalSchema, type AnalysisResult } from '../types/ir';
 
 /**
@@ -7,6 +8,26 @@ import { FindingSchema, RefusalSchema, type AnalysisResult } from '../types/ir';
  * what will be migrated, what was flagged, what was refused, and whether the
  * run is blocked outright.
  */
+
+/**
+ * v3: the decompose-vs-SPA strategy block, derived from the coupling analysis.
+ * Optional so every v1 single-part flow is untouched; the CLI fills it once the
+ * v3 steps wire coupling into the plan stage (docs/v3).
+ */
+export const StrategySchema = z.object({
+  parts: z.array(
+    z.object({
+      name: z.string().regex(/^[A-Z][A-Za-z0-9]*$/),
+      /** Root of the region in the original page, e.g. '#news-panel'. */
+      rootSelector: z.string(),
+    }),
+  ),
+  recommendation: z.enum(['single', 'decompose', 'spa']),
+  reasons: z.array(z.string()),
+  couplingEdges: z.number().int(),
+});
+
+export type Strategy = z.infer<typeof StrategySchema>;
 
 export const MigrationPlanSchema = z.object({
   componentName: z.string().regex(/^[A-Z][A-Za-z0-9]*$/),
@@ -22,12 +43,17 @@ export const MigrationPlanSchema = z.object({
   refusals: z.array(RefusalSchema),
   /** True when refusals exist — the transform must not run on a blocked plan. */
   blocked: z.boolean(),
+  strategy: StrategySchema.optional(),
 });
 
 export type MigrationPlan = z.infer<typeof MigrationPlanSchema>;
 
-export function buildPlan(args: { analysis: AnalysisResult; name: string }): MigrationPlan {
-  const { analysis, name } = args;
+export function buildPlan(args: {
+  analysis: AnalysisResult;
+  name: string;
+  coupling?: CouplingReport;
+}): MigrationPlan {
+  const { analysis, name, coupling } = args;
 
   const sourceFiles = [
     'index.html',
@@ -49,9 +75,28 @@ export function buildPlan(args: { analysis: AnalysisResult; name: string }): Mig
     findings: analysis.findings,
     refusals: analysis.refusals,
     blocked: analysis.refusals.length > 0,
+    ...(coupling ? { strategy: strategyFrom(coupling) } : {}),
   };
 
   return MigrationPlanSchema.parse(plan);
+}
+
+function strategyFrom(coupling: CouplingReport): Strategy {
+  const used = new Set<string>();
+  const parts = coupling.regions.map((region) => {
+    let name = componentNameFrom(region.name);
+    // Two ids can normalize to the same component name — disambiguate deterministically.
+    let suffix = 2;
+    while (used.has(name)) name = `${componentNameFrom(region.name)}${suffix++}`;
+    used.add(name);
+    return { name, rootSelector: `#${region.name}` };
+  });
+  return {
+    parts,
+    recommendation: coupling.recommendation,
+    reasons: coupling.reasons,
+    couplingEdges: coupling.edges.length,
+  };
 }
 
 /** '001-static-hello' → 'StaticHello'; purely-numeric segments are dropped. */
