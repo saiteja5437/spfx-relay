@@ -79,6 +79,10 @@ export function renderReport(args: ReportArgs): string {
     }
     if (args.bundle) {
       lines.push(`- SPFx bundle seal: **${args.bundle.status.toUpperCase()}** — ${firstLine(args.bundle.detail)}`);
+      const rest = args.bundle.detail.split('\n').slice(1).join('\n').trim();
+      if (rest.length > 0) {
+        lines.push('', '```', rest, '```');
+      }
     }
   }
 

@@ -1,5 +1,6 @@
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { runBundleSeal, type CommandResult, type CommandRunner } from '../../src/verify/bundle';
+import { defaultRunner, runBundleSeal, type CommandResult, type CommandRunner } from '../../src/verify/bundle';
 
 function scriptedRunner(script: Record<string, CommandResult>): { runner: CommandRunner; calls: string[] } {
   const calls: string[] = [];
@@ -46,6 +47,15 @@ describe('runBundleSeal', () => {
     const result = runBundleSeal('/out', runner);
     expect(result.status).toBe('failed');
     expect(result.detail).toContain('TS2304');
+  });
+
+  it('defaultRunner explains a spawn failure instead of returning empty output', () => {
+    // Regression: a process that never produced stdout/stderr (spawn error,
+    // timeout) used to fail with a completely empty output string.
+    const missingCwd = join(process.cwd(), 'definitely-not-a-real-directory');
+    const result = defaultRunner(process.execPath, ['--version'], missingCwd);
+    expect(result.ok).toBe(false);
+    expect(result.output).toContain('did not complete');
   });
 
   it('fails at install without attempting the bundle', () => {

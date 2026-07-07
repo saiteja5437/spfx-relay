@@ -108,10 +108,11 @@ Stated honestly, because the tool's credibility depends on it:
 - **No behavioral-equivalence guarantee.** The output compiles, lints, and preserves the
   visible surface (asserted by eval content checks) — a developer still reviews the report's
   `assumptions` and `unhandled` sections before shipping. That review is part of the design.
-- **The bundle seal has been tested through mocks, not against a real SPFx toolchain yet.**
-  The emitted scaffold pins SPFx 1.21.1 (needs Node 22 for a real `gulp bundle`); expect
-  template iteration on first real use — e.g. the plain `./styles.css` import may need to
-  become `.module.scss` for the SPFx webpack pipeline.
+- **The bundle seal requires Node 22.** The emitted scaffold pins SPFx 1.21.1, whose build
+  toolchain hard-rejects other Node majors (`>=22.14.0 <23.0.0`). The seal is live-proven:
+  a real `npm install` + `gulp bundle` passes against the emitted project, and the plain
+  `./style.css` import works as-is in the SPFx webpack pipeline. On an unsupported Node the
+  seal fails with the toolchain's own version error, quoted in full in the report.
 - **Analyzer blind spots (documented in code):** property-style DOM mutations
   (`el.textContent = …`) are not recorded in the IR (the transform still sees the full
   source); the secret rule matches common patterns (named variables, known key prefixes),
@@ -160,6 +161,8 @@ See `CLAUDE.md` for the design decisions, invariants, and roadmap.
 - [x] Milestone 3 — pipeline core: cache, sealed steps, repair loop, plan, transform
 - [x] Milestone 4 — verify gates, compile-repair, SPFx emit, report, CLI
 - [x] Milestone 5 — eval harness and per-model scorecard
+- [x] Bundle seal live-proven — real `npm install` + `gulp bundle` (SPFx 1.21.1, Node 22.14)
+      passes against an emitted project; seal failures now quote the toolchain's full output
 
 ## License
 

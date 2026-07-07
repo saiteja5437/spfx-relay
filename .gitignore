@@ -6,3 +6,6 @@ coverage/
 
 .spfx-relay/
 eval-results/
+
+# Locally generated migration output (tool output, not tool source)
+webpart/

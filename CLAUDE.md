@@ -62,22 +62,23 @@ system level even though the model is probabilistic:
 
 ## Current state (end of v1)
 
-All 5 v1 milestones complete; ~107 offline tests. Live-proven with Ollama
+All 5 v1 milestones complete; ~109 offline tests. Live-proven with Ollama
 (`gemma4:31b-cloud`: 4/4 compile, 5/5 refusals, 12/12 content checks, avg 1 gate
-attempt). Anthropic adapter is fully tested offline but has not had a live run yet
+attempt). **Bundle seal live-proven too** (July 2026): full pipeline incl. real
+`npm install` + `gulp bundle` passes on Node 22.14 against SPFx 1.21.1 — the plain
+`./style.css` import works as-is; no template changes were needed. A user's real
+web part (BenchmarkCompanyCard) also built and packaged to `.sppkg` manually.
+Anthropic adapter is fully tested offline but has not had a live run yet
 (no API key on this machine so far).
 
 ## Known gaps / next work (in value order)
 
-1. **Bundle seal never run against a real SPFx toolchain** — needs Node 22; expect
-   template iteration (e.g. `./styles.css` import may need `.module.scss` treatment in
-   the SPFx webpack pipeline). Templates pinned SPFx 1.21.1 in `templates/spfx/`.
-2. **Anthropic live run + second scorecard row** (needs ANTHROPIC_API_KEY).
-3. **v2 — plugin registry:** upgrade refusals in `src/analyze/dependencies.ts` to
+1. **Anthropic live run + second scorecard row** (needs ANTHROPIC_API_KEY).
+2. **v2 — plugin registry:** upgrade refusals in `src/analyze/dependencies.ts` to
    user-approved mappings (same plugin via React wrapper vs recommended replacement),
    with version + license metadata (ag-Grid/DevExtreme are commercial — flag it). The
    plan-approval step is the designed interaction point.
-4. **v3 — multi-web-part decomposition; v4 — more targets/providers (OpenAI/Azure).**
-5. CI pipeline (GitHub Actions: typecheck + test + lint) — everything is offline-safe.
-6. Analyzer blind spot: property-style DOM mutations (`el.textContent = …`) aren't in
+3. **v3 — multi-web-part decomposition; v4 — more targets/providers (OpenAI/Azure).**
+4. CI pipeline (GitHub Actions: typecheck + test + lint) — everything is offline-safe.
+5. Analyzer blind spot: property-style DOM mutations (`el.textContent = …`) aren't in
    the IR (documented in src/analyze/script.ts).

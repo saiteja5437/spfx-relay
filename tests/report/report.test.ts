@@ -61,6 +61,31 @@ describe('renderReport', () => {
     expect(report).toContain('Total tokens: 1200 in / 800 out.');
   });
 
+  it('shows the full bundle failure output, not just its first line', () => {
+    // Regression: the first live seal failure (unsupported Node) was reported as a
+    // bare "gulp bundle failed:" because everything after line 1 was dropped.
+    const analysis = analyzeWebPart(corpusInput);
+    const plan = buildPlan({ analysis, name: '001-static-hello' });
+
+    const report = renderReport({
+      status: 'migrated',
+      plan,
+      gates: {
+        typecheck: { ok: true, issues: [] },
+        lint: { ok: true, issues: [] },
+      },
+      bundle: {
+        status: 'failed',
+        detail: 'gulp bundle failed:\nError: Your dev environment is running NodeJS version v24.14.0\nwhich does not meet the requirements for running this tool.',
+      },
+      manifest: new RunManifest(),
+    });
+
+    expect(report).toContain('SPFx bundle seal: **FAILED** — gulp bundle failed:');
+    expect(report).toContain('NodeJS version v24.14.0');
+    expect(report).toContain('```'); // the captured tool output is fenced
+  });
+
   it('renders a blocked report that lists every refusal', () => {
     const analysis = analyzeWebPart(refusalFixture);
     const plan = buildPlan({ analysis, name: 'plugin-refusal' });

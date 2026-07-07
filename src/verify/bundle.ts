@@ -28,8 +28,16 @@ export const defaultRunner: CommandRunner = (command, args, cwd) => {
     shell: process.platform === 'win32', // npm/npx are .cmd shims on Windows
     encoding: 'utf8',
     timeout: INSTALL_TIMEOUT_MS,
+    maxBuffer: 16 * 1024 * 1024, // spawnSync's 1 MiB default kills verbose npm/gulp runs mid-stream
   });
-  const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+  let output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+  // A spawn failure or timeout leaves status non-zero with no stdout/stderr to
+  // explain it — say what happened so the report never shows a bare failure.
+  if (result.error) {
+    output += `${output ? '\n' : ''}[runner] ${command} did not complete: ${result.error.message}`;
+  } else if (result.status !== 0 && result.signal) {
+    output += `${output ? '\n' : ''}[runner] ${command} was killed by signal ${result.signal}`;
+  }
   return { ok: result.status === 0, output };
 };
 
