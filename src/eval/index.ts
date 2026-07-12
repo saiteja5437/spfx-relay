@@ -1,11 +1,13 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { analyzeCouplingDir } from '../analyze/coupling';
+import { analyzeCouplingDir, loadCouplingInput } from '../analyze/coupling';
 import { analyzeWebPart } from '../analyze/index';
 import { stableStringify, type ResponseCache } from '../pipeline/cache';
 import { loadSourceFiles } from '../pipeline/context';
 import { RunManifest } from '../pipeline/manifest';
+import { runMultiPartTransform } from '../pipeline/multipart';
 import { buildPlan } from '../pipeline/plan';
+import { slicePartContexts } from '../pipeline/slice';
 import { runVerifiedTransform } from '../pipeline/verifiedTransform';
 import type { ModelProvider } from '../providers/types';
 
@@ -22,9 +24,16 @@ import type { ModelProvider } from '../providers/types';
  * - contentChecks are light surface assertions, NOT behavioral equivalence.
  */
 
+export interface PartCheckSpec {
+  mustContain?: string[];
+  mustNotContain?: string[];
+}
+
 export interface EvalSpec {
   componentMustContain?: string[];
   componentMustNotContain?: string[];
+  /** v3: per-part checks for decomposed items, keyed by part name. */
+  parts?: Record<string, PartCheckSpec>;
 }
 
 export interface ContentCheckResult {
@@ -41,11 +50,13 @@ export interface EvalItemResult {
   refusalCorrect: boolean;
   transform?: {
     compileOk: boolean;
-    /** Compile-repair rounds used (1 = passed first try). */
+    /** Compile-repair rounds used (1 = passed first try). For multi-part: max across parts. */
     gateAttempts: number;
     /** Total sealed-step attempts including schema repairs, from the manifest. */
     stepAttempts: number;
     contentChecks: ContentCheckResult;
+    /** v3: parts whose per-part checks all passed, out of parts with checks. */
+    partsOk?: { passed: number; total: number };
     inputTokens: number;
     outputTokens: number;
     durationMs: number;
@@ -138,6 +149,40 @@ async function evalItem(args: EvalRunArgs, item: string): Promise<EvalItemResult
   const manifest = new RunManifest();
   const started = Date.now();
   try {
+    // v3: a decompose recommendation exercises the real multi-part pipeline.
+    if (coupling.recommendation === 'decompose') {
+      const parts = slicePartContexts(loadCouplingInput(inputDir), coupling);
+      const run = await runMultiPartTransform({
+        provider: args.provider,
+        plan,
+        analysis,
+        parts,
+        inputDir,
+        cache: args.cache,
+        manifest,
+        maxRepairRounds: args.maxRepairRounds,
+      });
+      const usage = manifest.totalUsage();
+      const { checks, partsOk } = multiPartContentChecks(
+        readSpec(itemDir),
+        new Map(run.results.map((r) => [r.part.name, r.verified.result.value.componentCode])),
+      );
+      return {
+        ...base,
+        outcome: run.ok ? 'migrated' : 'failed-verification',
+        transform: {
+          compileOk: run.ok,
+          gateAttempts: Math.max(...run.results.map((r) => r.verified.attempts)),
+          stepAttempts: manifest.steps.reduce((sum, step) => sum + step.attempts, 0),
+          contentChecks: checks,
+          partsOk,
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+          durationMs: Date.now() - started,
+        },
+      };
+    }
+
     const verified = await runVerifiedTransform({
       provider: args.provider,
       plan,
@@ -167,11 +212,14 @@ async function evalItem(args: EvalRunArgs, item: string): Promise<EvalItemResult
   }
 }
 
-function contentChecks(itemDir: string, componentCode: string): ContentCheckResult {
+function readSpec(itemDir: string): EvalSpec {
   const specPath = join(itemDir, 'eval.json');
-  if (!existsSync(specPath)) return { total: 0, passed: 0, failed: [] };
-  const spec = JSON.parse(readFileSync(specPath, 'utf8')) as EvalSpec;
+  if (!existsSync(specPath)) return {};
+  return JSON.parse(readFileSync(specPath, 'utf8')) as EvalSpec;
+}
 
+function contentChecks(itemDir: string, componentCode: string): ContentCheckResult {
+  const spec = readSpec(itemDir);
   const failed: string[] = [];
   let total = 0;
   for (const needle of spec.componentMustContain ?? []) {
@@ -183,6 +231,62 @@ function contentChecks(itemDir: string, componentCode: string): ContentCheckResu
     if (componentCode.includes(needle)) failed.push(`must not appear: ${needle}`);
   }
   return { total, passed: total - failed.length, failed };
+}
+
+/**
+ * v3 multi-part checks: top-level checks apply across all components joined;
+ * per-part checks apply to that part's component only. Exported so the
+ * leakage semantics are unit-tested with canned outputs (a deliberate leak
+ * must demonstrably fail).
+ */
+export function multiPartContentChecks(
+  spec: EvalSpec,
+  components: Map<string, string>,
+): { checks: ContentCheckResult; partsOk: { passed: number; total: number } } {
+  const failed: string[] = [];
+  let total = 0;
+  const joined = [...components.values()].join('\n');
+  for (const needle of spec.componentMustContain ?? []) {
+    total++;
+    if (!joined.includes(needle)) failed.push(`missing: ${needle}`);
+  }
+  for (const needle of spec.componentMustNotContain ?? []) {
+    total++;
+    if (joined.includes(needle)) failed.push(`must not appear: ${needle}`);
+  }
+
+  let partsPassed = 0;
+  const partSpecs = Object.entries(spec.parts ?? {});
+  for (const [name, partSpec] of partSpecs) {
+    const code = components.get(name);
+    let ok = true;
+    if (code === undefined) {
+      total++;
+      failed.push(`${name}: part missing from the run`);
+      ok = false;
+    } else {
+      for (const needle of partSpec.mustContain ?? []) {
+        total++;
+        if (!code.includes(needle)) {
+          failed.push(`${name} missing: ${needle}`);
+          ok = false;
+        }
+      }
+      for (const needle of partSpec.mustNotContain ?? []) {
+        total++;
+        if (code.includes(needle)) {
+          failed.push(`${name} must not contain: ${needle}`);
+          ok = false;
+        }
+      }
+    }
+    if (ok) partsPassed++;
+  }
+
+  return {
+    checks: { total, passed: total - failed.length, failed },
+    partsOk: { passed: partsPassed, total: partSpecs.length },
+  };
 }
 
 function summarize(results: EvalItemResult[]): EvalSummary {

@@ -1,0 +1,22 @@
+{
+  "ir": {
+    "assets": [
+      { "kind": "script", "path": "news.js", "file": "index.html", "line": 13, "external": false, "exists": true },
+      { "kind": "script", "path": "ticker.js", "file": "index.html", "line": 14, "external": false, "exists": true }
+    ],
+    "domOperations": [
+      { "api": "dom", "method": "getElementById", "target": "news-refresh", "file": "news.js", "line": 2 },
+      { "api": "dom", "method": "getElementById", "target": "news-list", "file": "news.js", "line": 3 },
+      { "api": "jquery", "method": "text", "target": "#ticker-value", "file": "ticker.js", "line": 5 }
+    ],
+    "eventHandlers": [
+      { "via": "addEventListener", "event": "click", "target": "document.getElementById('news-refresh')", "file": "news.js", "line": 2 },
+      { "via": "jquery", "event": "ready", "target": "document", "file": "ticker.js", "line": 1 },
+      { "via": "jquery", "event": "click", "target": "#ticker-go", "file": "ticker.js", "line": 3 }
+    ],
+    "networkCalls": [],
+    "dependencies": []
+  },
+  "findings": [],
+  "refusals": []
+}

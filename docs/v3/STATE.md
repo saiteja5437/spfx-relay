@@ -1,6 +1,6 @@
 # v3 execution state
 
-**Next step:** 08
+**Next step:** 09
 
 **Blocked:** (nothing)
 
@@ -54,3 +54,13 @@
   + preamble wording), NOT post-processing. Seal to be re-run after 08.
   Also: live006 first attempted in the session scratchpad — SPFx node_modules exceeds
   Windows MAX_PATH there; emitted solutions for live seals need a SHORT path.
+- 2026-07-12 — Step 08 done: eval.json parts checks (leakage both directions +
+  styles.css must-not-appear), decompose branch in evalItem via the real multi-part
+  pipeline, Parts ok column (append-only). A/B evidence for the part preamble:
+  BEFORE 006 = 6/8 checks, parts 0/2 (both parts imported nonexistent ./styles.css);
+  AFTER (one preamble sentence: import only stylesheets present in sources) =
+  8/8, parts 2/2, zero leakage, nothing else regressed (24/24 total). README
+  scorecard updated (7-item corpus, 6/6 compile).
+  **Step 07 live item CLOSED:** re-emitted 006 with the fixed prompt seals clean —
+  gulp bundle exit 0 on Node 22.14, dist/ = newspanel-web-part.js +
+  stockticker-web-part.js (one bundle per part, verified).

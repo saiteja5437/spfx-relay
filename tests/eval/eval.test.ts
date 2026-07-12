@@ -1,12 +1,13 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { runEval } from '../../src/eval/index';
+import { multiPartContentChecks, runEval } from '../../src/eval/index';
 import { renderEvalMarkdown } from '../../src/eval/render';
 import { ok, scriptedProvider } from '../pipeline/helpers';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const evalCorpus = join(here, '..', 'fixtures', 'eval-corpus');
+const multiCorpus = join(here, '..', 'fixtures', 'eval-corpus-multi');
 
 // Compiles under the real gates and satisfies 100-ok's content checks.
 const GOOD_CODE = `import * as React from 'react';
@@ -109,6 +110,67 @@ describe('runEval', () => {
     const checks = run.results[0]?.transform?.contentChecks;
     expect(checks).toMatchObject({ total: 2, passed: 1 });
     expect(checks?.failed).toEqual(['missing: hello-box']);
+  });
+});
+
+describe('multi-part eval (v3 step 08)', () => {
+  const NEWS = `import * as React from 'react';
+export default function NewsPanel(): React.ReactElement {
+  return <ul id="news-list"><li id="news-refresh">x</li></ul>;
+}
+`;
+  const TICKER = `import * as React from 'react';
+export default function StockTicker(): React.ReactElement {
+  return <span id="ticker-value"><button id="ticker-go">go</button></span>;
+}
+`;
+
+  it('runs the decompose pipeline for a multi-part item and scores per-part checks', async () => {
+    const { provider, calls } = scriptedProvider([transformOf(NEWS), transformOf(TICKER)]);
+    const run = await runEval({ provider, corpusDir: multiCorpus });
+
+    expect(calls).toHaveLength(2); // one sealed call per part
+    const item = run.results[0];
+    expect(item).toMatchObject({ item: '400-multi', outcome: 'migrated', analyzerConformant: true });
+    expect(item?.transform?.partsOk).toEqual({ passed: 2, total: 2 });
+    expect(item?.transform?.contentChecks).toMatchObject({ total: 8, passed: 8 });
+
+    const markdown = renderEvalMarkdown(run);
+    expect(markdown).toContain('| Parts ok |');
+    expect(markdown).toContain('| 2/2 |');
+  });
+
+  it('a deliberate cross-part leak demonstrably fails the mustNotContain check', async () => {
+    const leakyNews = NEWS.replace('>x<', '>ticker-value is over there<'); // leak: news mentions the ticker
+    const { provider } = scriptedProvider([transformOf(leakyNews), transformOf(TICKER)]);
+    const run = await runEval({ provider, corpusDir: multiCorpus });
+
+    const checks = run.results[0]?.transform?.contentChecks;
+    expect(run.results[0]?.transform?.partsOk).toEqual({ passed: 1, total: 2 });
+    expect(checks?.failed).toEqual(['NewsPanel must not contain: ticker']);
+  });
+
+  it('multiPartContentChecks unit semantics: missing parts, leaks, and invented stylesheet imports', () => {
+    const spec = {
+      parts: {
+        A: { mustContain: ['a-root'], mustNotContain: ['b-root', 'styles.css'] },
+        B: { mustContain: ['b-root'] },
+      },
+    };
+    const clean = multiPartContentChecks(spec, new Map([['A', '<div id="a-root"/>'], ['B', '<div id="b-root"/>']]));
+    expect(clean.partsOk).toEqual({ passed: 2, total: 2 });
+    expect(clean.checks.failed).toEqual([]);
+
+    const leakyAndInvented = multiPartContentChecks(
+      spec,
+      new Map([['A', "import './styles.css';\n<div id=\"a-root\"/><div id=\"b-root\"/>"]]),
+    );
+    expect(leakyAndInvented.partsOk).toEqual({ passed: 0, total: 2 });
+    expect(leakyAndInvented.checks.failed).toEqual([
+      'A must not contain: b-root',
+      'A must not contain: styles.css',
+      'B: part missing from the run',
+    ]);
   });
 });
 

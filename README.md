@@ -82,15 +82,18 @@ The tool itself sends nothing anywhere else; cache and manifests stay on disk.
 
 ## Scorecard
 
-`spfx-relay eval` over the 5-item corpus (via `eval-results/`):
+`spfx-relay eval` over the 7-item corpus (via `eval-results/`):
 
-| Model | Compile rate | Refusal correctness | Content checks | Avg gate attempts | Tokens (in/out) | Time |
-|---|---|---|---|---|---|---|
-| ollama/gemma4:31b-cloud | 4/4 | 5/5 | 12/12 | 1.0 | 6.7K/1.5K | 30s |
+| Model | Compile rate | Refusal correctness | Content checks | Parts ok | Avg gate attempts | Tokens (in/out) | Time |
+|---|---|---|---|---|---|---|---|
+| ollama/gemma4:31b-cloud | 6/6 | 7/7 | 24/24 | 2/2 | 1.0 | 10.0K/2.5K | 22s |
 
 The first eval run against this model scored 11/12: it reproduced a planted hardcoded secret
 in the generated component. One prompt rule later, 12/12 — that eval-driven loop is the
-point of the harness.
+point of the harness. v3 repeated the pattern: the first multi-part run imported a stylesheet
+that doesn't exist (compiled clean, failed webpack); the eval's per-part checks caught it,
+one preamble rule later 006 scored 8/8 with zero cross-part leakage, and the emitted
+two-web-part solution seals for real.
 
 ## V1 scope
 

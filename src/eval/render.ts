@@ -2,31 +2,36 @@ import type { EvalItemResult, EvalRun } from './index';
 
 /** Renders the scorecard humans read (and READMEs quote). */
 export function renderEvalMarkdown(run: EvalRun): string {
+  // Append-only: the Parts ok column exists only when a multi-part item ran.
+  const withParts = run.results.some((result) => result.transform?.partsOk !== undefined);
   const lines: string[] = [
     `# spfx-relay eval — ${run.provider}/${run.model}`,
     '',
     `Run started: ${run.startedAt}`,
     '',
-    '| Item | Expected | Outcome | Analyzer | Refusal | Attempts (gate/step) | Content checks | Tokens in/out | Time |',
-    '|---|---|---|---|---|---|---|---|---|',
+    `| Item | Expected | Outcome | Analyzer | Refusal | Attempts (gate/step) | Content checks | Tokens in/out | Time |${withParts ? ' Parts ok |' : ''}`,
+    `|---|---|---|---|---|---|---|---|---|${withParts ? '---|' : ''}`,
   ];
 
   for (const result of run.results) {
-    lines.push(
-      [
-        '',
-        result.item,
-        result.expectedOutcome,
-        outcomeLabel(result),
-        result.analyzerConformant ? 'ok' : 'DRIFT',
-        result.refusalCorrect ? 'ok' : 'WRONG',
-        result.transform ? `${result.transform.gateAttempts}/${result.transform.stepAttempts}` : '—',
-        contentLabel(result),
-        result.transform ? `${result.transform.inputTokens}/${result.transform.outputTokens}` : '—',
-        result.transform ? `${(result.transform.durationMs / 1000).toFixed(1)}s` : '—',
-        '',
-      ].join(' | '),
-    );
+    const cells = [
+      '',
+      result.item,
+      result.expectedOutcome,
+      outcomeLabel(result),
+      result.analyzerConformant ? 'ok' : 'DRIFT',
+      result.refusalCorrect ? 'ok' : 'WRONG',
+      result.transform ? `${result.transform.gateAttempts}/${result.transform.stepAttempts}` : '—',
+      contentLabel(result),
+      result.transform ? `${result.transform.inputTokens}/${result.transform.outputTokens}` : '—',
+      result.transform ? `${(result.transform.durationMs / 1000).toFixed(1)}s` : '—',
+    ];
+    if (withParts) {
+      const partsOk = result.transform?.partsOk;
+      cells.push(partsOk ? `${partsOk.passed}/${partsOk.total}` : '—');
+    }
+    cells.push('');
+    lines.push(cells.join(' | '));
   }
 
   const s = run.summary;

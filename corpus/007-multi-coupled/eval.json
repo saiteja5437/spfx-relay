@@ -1,0 +1,4 @@
+{
+  "componentMustContain": ["add-item", "cart-refresh", "cart-count"],
+  "componentMustNotContain": ["styles.css"]
+}

@@ -1,0 +1,12 @@
+{
+  "parts": {
+    "NewsPanel": {
+      "mustContain": ["news-refresh", "news-list"],
+      "mustNotContain": ["ticker", "styles.css"]
+    },
+    "StockTicker": {
+      "mustContain": ["ticker-go", "ticker-value"],
+      "mustNotContain": ["news", "styles.css"]
+    }
+  }
+}

@@ -78,7 +78,8 @@ export function buildTransformContext(args: {
       '## Decomposition scope',
       `This component is ONE PART of a decomposed legacy page (its root: ${part.rootSelector}). ` +
         'Other parts of the page are migrated separately and handle the rest. ' +
-        'Migrate ONLY the fragment and scripts below; do not reference, render, or query DOM outside your fragment.',
+        'Migrate ONLY the fragment and scripts below; do not reference, render, or query DOM outside your fragment. ' +
+        'Import ONLY stylesheets that appear under Legacy source files below — if none appear there, do not import any stylesheet.',
     );
   } else {
     sections.push('', '## Static analysis of the legacy code (IR)', '```json', JSON.stringify(analysis.ir, null, 2), '```');
