@@ -1,9 +1,12 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { loadCouplingInput } from '../src/analyze/coupling';
+import { classifyLocalScript } from '../src/analyze/dependencies';
 import { analyzeWebPart } from '../src/analyze/index';
 import { analyzeScript } from '../src/analyze/script';
 import { secretFindings } from '../src/analyze/rules/secrets';
+import { buildPlan } from '../src/pipeline/plan';
 
 const fixturesRoot = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
 
@@ -58,6 +61,46 @@ describe('external-dependency refusals', () => {
     expect(result.refusals).toHaveLength(2);
     const constructs = result.refusals.map((r) => r.construct).sort();
     expect(constructs).toEqual(['external-plugin', 'unknown-external-script']);
+  });
+});
+
+describe('vendored-plugin refusals (local library files)', () => {
+  // Found by the first real-world analyze-only sweep: a locally-copied
+  // jquery.carouselTicker.js sailed through as authored source.
+  it('classifyLocalScript: registry first, then the generic jquery.<plugin>.js shape', () => {
+    expect(classifyLocalScript('javascripts/jquery.carouselTicker.js')).toEqual({
+      name: 'jquery-plugin:carouselTicker',
+      supported: false,
+    });
+    expect(classifyLocalScript('jquery.simpleTicker.min.js')).toEqual({
+      name: 'jquery-plugin:simpleTicker',
+      supported: false,
+    });
+    // Registry patterns win over the generic shape.
+    expect(classifyLocalScript('libs/jquery.dataTables.min.js')).toEqual({ name: 'datatables', supported: false });
+    expect(classifyLocalScript('jquery-3.6.0.min.js')).toEqual({ name: 'jquery', supported: true });
+    // Authored code stays authored.
+    expect(classifyLocalScript('app.js')).toBeNull();
+    expect(classifyLocalScript('scripts/ticker.js')).toBeNull();
+  });
+
+  it('refuses a local plugin file and never analyzes its internals', () => {
+    const result = analyzeWebPart(join(fixturesRoot, 'local-plugin'));
+
+    expect(result.refusals).toHaveLength(1);
+    expect(result.refusals[0]).toMatchObject({ construct: 'vendored-plugin', file: 'index.html', line: 11 });
+    expect(result.refusals[0]?.reason).toContain("'jquery-plugin:simpleTicker'");
+
+    // The plugin file's internals contributed NOTHING to the IR — only app.js did.
+    expect(result.ir.domOperations.every((op) => op.file === 'app.js')).toBe(true);
+    expect(result.ir.eventHandlers.every((handler) => handler.file === 'app.js')).toBe(true);
+
+    // And it never reaches the model as a source file, nor the coupling input.
+    const plan = buildPlan({ analysis: result, name: 'local-plugin' });
+    expect(plan.blocked).toBe(true);
+    expect(plan.sourceFiles).toEqual(['app.js', 'index.html']);
+    const coupling = loadCouplingInput(join(fixturesRoot, 'local-plugin'));
+    expect(coupling.scripts.map((script) => script.file)).toEqual(['app.js']);
   });
 });
 

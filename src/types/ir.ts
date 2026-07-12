@@ -82,7 +82,7 @@ export const FindingSchema = z.object({
  * the affected unit and appear in the report — the tool never guesses through them.
  */
 export const RefusalSchema = z.object({
-  construct: z.enum(['external-plugin', 'unknown-external-script']),
+  construct: z.enum(['external-plugin', 'unknown-external-script', 'vendored-plugin']),
   reason: z.string(),
   file: z.string(),
   line: z.number().int(),

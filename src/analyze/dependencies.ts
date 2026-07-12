@@ -36,3 +36,23 @@ export function classifyExternalScript(url: string): LibraryMatch {
 export function isExternalUrl(path: string): boolean {
   return /^(https?:)?\/\//i.test(path);
 }
+
+/**
+ * Locally-vendored library files. Real Script Editor parts copy plugin .js
+ * files into the site assets, so refusal must not depend on a CDN URL (found
+ * by the first real-world analyze-only sweep: a local jquery.carouselTicker.js
+ * sailed through as authored source). The registry patterns run first (so
+ * jquery.dataTables.min.js classifies as datatables and jquery-3.6.0.min.js as
+ * core jquery), then the generic jquery.<plugin>.js filename shape. Returns
+ * null for scripts that look like authored code — those stay analyzed sources.
+ */
+export function classifyLocalScript(path: string): LibraryMatch | null {
+  for (const entry of REGISTRY) {
+    if (entry.pattern.test(path)) {
+      return { name: entry.name, supported: entry.supported };
+    }
+  }
+  const plugin = /(^|[\\/])jquery[._-]([\w-]+?)(\.min)?\.js$/i.exec(path);
+  if (plugin?.[2]) return { name: `jquery-plugin:${plugin[2]}`, supported: false };
+  return null;
+}

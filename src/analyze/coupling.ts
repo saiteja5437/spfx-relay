@@ -4,6 +4,7 @@ import { parse } from 'parse5';
 import type { DefaultTreeAdapterMap } from 'parse5';
 import ts from 'typescript';
 import { z } from 'zod';
+import { classifyLocalScript } from './dependencies';
 import { analyzeHtml } from './html';
 
 /**
@@ -318,6 +319,9 @@ export function loadCouplingInput(inputDir: string): CouplingInput {
   const scripts: CouplingScript[] = [];
   for (const ref of htmlFacts.assets) {
     if (ref.kind !== 'script' || /^(https?:)?\/\//i.test(ref.path)) continue;
+    // Vendored library internals must not pollute coupling evidence either —
+    // their globals are library plumbing, not page state.
+    if (classifyLocalScript(ref.path)) continue;
     const path = join(inputDir, ref.path);
     if (existsSync(path)) scripts.push({ file: ref.path.replaceAll('\\', '/'), code: readFileSync(path, 'utf8') });
   }

@@ -55,11 +55,15 @@ export function buildPlan(args: {
 }): MigrationPlan {
   const { analysis, name, coupling } = args;
 
+  // A local file classified as a dependency (vendored plugin/library) must
+  // never reach the model as source — its internals are not authored code.
+  const dependencySources = new Set(analysis.ir.dependencies.map((dep) => dep.source));
   const sourceFiles = [
     'index.html',
     ...analysis.ir.assets
       .filter((asset) => !asset.external && asset.exists === true)
       .filter((asset) => asset.kind === 'script' || asset.kind === 'stylesheet')
+      .filter((asset) => !dependencySources.has(asset.path))
       .map((asset) => asset.path),
   ];
 

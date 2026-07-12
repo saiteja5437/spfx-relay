@@ -11,7 +11,7 @@ import {
 } from '../types/ir';
 import { analyzeHtml } from './html';
 import { analyzeScript, type StringAssignment } from './script';
-import { classifyExternalScript, isExternalUrl } from './dependencies';
+import { classifyExternalScript, classifyLocalScript, isExternalUrl } from './dependencies';
 import { secretFindings } from './rules/secrets';
 import { assetFindings } from './rules/assets';
 import { pluginRefusals } from './rules/plugins';
@@ -53,6 +53,20 @@ export function analyzeWebPart(inputDir: string): AnalysisResult {
         supported: library.supported,
       });
     } else if (exists) {
+      // Vendored library files (jquery.<plugin>.js copied into the site
+      // assets) are dependencies, not authored code: classified against the
+      // same registry, never content-analyzed, never sent to the model.
+      const library = classifyLocalScript(ref.path);
+      if (library) {
+        dependencies.push({
+          name: library.name,
+          source: toPosix(ref.path),
+          file: ENTRY_FILE,
+          line: ref.line,
+          supported: library.supported,
+        });
+        continue;
+      }
       scriptsToAnalyze.push({
         file: toPosix(ref.path),
         code: readFileSync(join(inputDir, ref.path), 'utf8'),

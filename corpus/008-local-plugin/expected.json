@@ -1,0 +1,24 @@
+{
+  "ir": {
+    "assets": [
+      { "kind": "script", "path": "https://code.jquery.com/jquery-3.6.0.min.js", "file": "index.html", "line": 10, "external": true, "exists": null },
+      { "kind": "script", "path": "jquery.simpleTicker.js", "file": "index.html", "line": 11, "external": false, "exists": true },
+      { "kind": "script", "path": "app.js", "file": "index.html", "line": 12, "external": false, "exists": true }
+    ],
+    "domOperations": [
+      { "api": "jquery", "method": "simpleTicker", "target": "#ticker-list", "file": "app.js", "line": 2 }
+    ],
+    "eventHandlers": [
+      { "via": "jquery", "event": "ready", "target": "document", "file": "app.js", "line": 1 }
+    ],
+    "networkCalls": [],
+    "dependencies": [
+      { "name": "jquery", "source": "https://code.jquery.com/jquery-3.6.0.min.js", "file": "index.html", "line": 10, "supported": true },
+      { "name": "jquery-plugin:simpleTicker", "source": "jquery.simpleTicker.js", "file": "index.html", "line": 11, "supported": false }
+    ]
+  },
+  "findings": [],
+  "refusals": [
+    { "construct": "vendored-plugin", "reason": "Locally vendored library 'jquery-plugin:simpleTicker' (jquery.simpleTicker.js) is not supported in v1 — plugin internals must not be rewritten; migrate this dependency manually.", "file": "index.html", "line": 11 }
+  ]
+}

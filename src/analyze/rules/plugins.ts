@@ -1,3 +1,4 @@
+import { isExternalUrl } from '../dependencies';
 import type { Dependency, Refusal } from '../../types/ir';
 
 /**
@@ -14,6 +15,15 @@ export function pluginRefusals(dependencies: Dependency[]): Refusal[] {
       refusals.push({
         construct: 'unknown-external-script',
         reason: `Unrecognized external script '${dep.source}' — cannot verify what it does; migrate it manually.`,
+        file: dep.file,
+        line: dep.line,
+      });
+    } else if (!isExternalUrl(dep.source)) {
+      refusals.push({
+        construct: 'vendored-plugin',
+        reason:
+          `Locally vendored library '${dep.name}' (${dep.source}) is not supported in v1 — ` +
+          'plugin internals must not be rewritten; migrate this dependency manually.',
         file: dep.file,
         line: dep.line,
       });

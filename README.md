@@ -83,11 +83,11 @@ The tool itself sends nothing anywhere else; cache and manifests stay on disk.
 
 ## Scorecard
 
-`spfx-relay eval` over the 7-item corpus (via `eval-results/`):
+`spfx-relay eval` over the 8-item corpus (via `eval-results/`):
 
 | Model | Compile rate | Refusal correctness | Content checks | Parts ok | Avg gate attempts | Tokens (in/out) | Time |
 |---|---|---|---|---|---|---|---|
-| ollama/gemma4:31b-cloud | 6/6 | 7/7 | 24/24 | 2/2 | 1.0 | 10.0K/2.5K | 22s |
+| ollama/gemma4:31b-cloud | 6/6 | 8/8 | 24/24 | 2/2 | 1.0 | 10.0K/2.5K | 22s |
 
 The first eval run against this model scored 11/12: it reproduced a planted hardcoded secret
 in the generated component. One prompt rule later, 12/12 — that eval-driven loop is the
@@ -128,7 +128,7 @@ become several web parts or stay whole:
 
 | In | Out (detected and refused) |
 |---|---|
-| Self-contained HTML + CSS + vanilla JS/jQuery | jQuery plugin ecosystems (ag-Grid, DevExtreme, DataTables, …) |
+| Self-contained HTML + CSS + vanilla JS/jQuery | jQuery plugin ecosystems (ag-Grid, DevExtreme, DataTables, …) — whether loaded from a CDN or vendored as local files |
 | Single web part per run (v3 adds multi-widget decomposition) | Multi-page apps |
 | Flagging bad practices (hardcoded secrets, broken asset refs) | Behavioral-equivalence guarantees |
 | Anthropic Claude + Ollama providers | Other frameworks / providers (roadmap) |
