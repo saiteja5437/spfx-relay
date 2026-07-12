@@ -161,7 +161,8 @@ Stated honestly, because the tool's credibility depends on it:
   a risky split.
 - **The plan-approval prompt is interactive** — use `--yes` in CI/scripts.
 - Developed on Windows; prompts and outputs are line-ending-normalized for cross-platform
-  determinism, but there is no CI pipeline yet.
+  determinism, and CI asserts it: the full gate suite (typecheck, all offline tests incl.
+  corpus ground truth, lint) runs on both ubuntu and windows for every push.
 
 ## Development
 
@@ -204,6 +205,8 @@ See `CLAUDE.md` for the design decisions, invariants, and roadmap.
 - [x] v3 — coupling analysis, single/decompose/spa strategy with safe-direction override,
       context slicing, N-part solution emit + per-part verification, multi-part eval; the
       two-web-part corpus item transforms, verifies, and seals live (one bundle per part)
+- [x] CI — typecheck + tests + lint on an ubuntu/windows matrix (cross-OS determinism
+      is asserted, not assumed)
 
 ## License
 

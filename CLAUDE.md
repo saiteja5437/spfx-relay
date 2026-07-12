@@ -83,8 +83,7 @@ fully tested offline but has not had a live run yet (no API key on this machine)
    with version + license metadata (ag-Grid/DevExtreme are commercial — flag it). The
    plan-approval step is the designed interaction point.
 3. **v4 — more providers (OpenAI/Azure):** see `docs/v3/V4.md` (short by design).
-4. CI pipeline (GitHub Actions: typecheck + test + lint) — everything is offline-safe.
-5. Analyzer blind spots: property-style DOM mutations (`el.textContent = …`) aren't in
+4. Analyzer blind spots: property-style DOM mutations (`el.textContent = …`) aren't in
    the IR (documented in src/analyze/script.ts); coupling approximations are listed in
    README Known limitations (they all err toward the safe spa recommendation).
 

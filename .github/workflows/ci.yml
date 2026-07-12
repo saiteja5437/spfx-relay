@@ -1,0 +1,39 @@
+# CI gates — the same three commands required before every local commit.
+#
+# The two-OS matrix is deliberate: the project claims byte-identical output on
+# any OS (canonical sorting, CRLF→LF normalization at every text entry point,
+# frozen prompts). ubuntu checks out LF and runs a different ICU/locale than
+# the Windows dev machine, so a green matrix is real evidence for that claim —
+# corpus expected.json and coupling.json assertions would catch any drift.
+#
+# Everything here is offline by design: fetch is injected in tests, live smoke
+# tests sit behind SMOKE_* env vars, and the SPFx bundle seal is not exercised
+# (it needs a full npm install of SPFx — that stays a manual, recorded step).
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  gates:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # SPFx 1.21.1's toolchain pins Node 22; CI matches the supported major.
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run lint
