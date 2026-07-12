@@ -14,6 +14,8 @@ import type { VerifyResult } from '../verify/types';
 export interface ReportArgs {
   status: 'migrated' | 'blocked' | 'failed';
   plan: MigrationPlan;
+  /** Runtime strategy choice (may differ from the recommendation via --strategy). */
+  chosen?: 'single' | 'decompose' | 'spa';
   transform?: TransformResult;
   gates?: GateResults;
   transformAttempts?: number;
@@ -40,6 +42,19 @@ export function renderReport(args: ReportArgs): string {
     `| Network calls | ${plan.stats.networkCalls} |`,
     `| External dependencies | ${plan.stats.dependencies} |`,
   ];
+
+  if (plan.strategy) {
+    const strategy = plan.strategy;
+    lines.push('', '## Strategy', '', `**Recommendation:** ${strategy.recommendation}`);
+    if (args.chosen && args.chosen !== strategy.recommendation) {
+      lines.push('', `**Chosen:** ${args.chosen} (user override — see the safe-direction rule)`);
+    }
+    if (strategy.parts.length > 0) {
+      lines.push('', '| Part | Root selector |', '|---|---|');
+      for (const part of strategy.parts) lines.push(`| \`${part.name}\` | \`${part.rootSelector}\` |`);
+    }
+    lines.push('', ...strategy.reasons.map((reason) => `- ${reason}`));
+  }
 
   lines.push('', '## Flagged issues', '');
   if (plan.findings.length === 0) {

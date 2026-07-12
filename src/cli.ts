@@ -289,6 +289,7 @@ export async function main(argv: string[]): Promise<number> {
       {
         status: 'failed',
         plan,
+        chosen: decision.chosen,
         transform: verified.result.value,
         gates: verified.gates,
         transformAttempts: verified.attempts,
@@ -322,6 +323,7 @@ export async function main(argv: string[]): Promise<number> {
     {
       status: 'migrated',
       plan,
+      chosen: decision.chosen,
       transform: verified.result.value,
       gates: verified.gates,
       transformAttempts: verified.attempts,
