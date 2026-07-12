@@ -101,10 +101,12 @@ const TAG_LOOKUPS = new Set(['getElementsByTagName']);
 // ---------------------------------------------------------------------------
 
 type P5Node = DefaultTreeAdapterMap['node'];
-type P5Element = DefaultTreeAdapterMap['element'];
+export type P5Element = DefaultTreeAdapterMap['element'];
 
-interface RegionFacts {
+export interface RegionFacts {
   regions: Region[];
+  /** Region name → its parse5 root element (for HTML slicing, v3 step 05). */
+  roots: Map<string, P5Element>;
   /** id/class → names of regions containing it; only single-owner keys attribute. */
   idOwner: Map<string, Set<string>>;
   classOwner: Map<string, Set<string>>;
@@ -121,7 +123,7 @@ function attr(el: P5Element, name: string): string | undefined {
 
 function extractRegions(html: string): RegionFacts {
   const document = parse(html, { sourceCodeLocationInfo: true });
-  const facts: RegionFacts = { regions: [], idOwner: new Map(), classOwner: new Map(), inlineHandlers: [] };
+  const facts: RegionFacts = { regions: [], roots: new Map(), idOwner: new Map(), classOwner: new Map(), inlineHandlers: [] };
 
   const htmlEl = document.childNodes.find((n): n is P5Element => isElement(n) && n.tagName === 'html');
   const body = htmlEl?.childNodes.find((n): n is P5Element => isElement(n) && n.tagName === 'body');
@@ -135,6 +137,7 @@ function extractRegions(html: string): RegionFacts {
     if (CONTAINER_TAGS.has(child.tagName) && id && !usedNames.has(id)) {
       usedNames.add(id);
       facts.regions.push({ name: id, tag: child.tagName, line: child.sourceCodeLocation?.startLine ?? 0 });
+      facts.roots.set(id, child);
     }
   }
   const regionNames = new Set(facts.regions.map((r) => r.name));
@@ -177,7 +180,7 @@ function addOwner(map: Map<string, Set<string>>, key: string, region: string): v
 // Script units, globals, attribution (TS compiler API)
 // ---------------------------------------------------------------------------
 
-interface Unit {
+export interface Unit {
   file: string;
   line: number;
   regions: Set<string>;
@@ -188,9 +191,11 @@ interface Unit {
   lineOffset: number;
   scope: string; // '' = shared window scope; otherwise per-wrapper
   seedRegion: string | null;
+  /** Lookup values in this unit that could not be attributed (slicing evidence). */
+  unattributedLookups: string[];
 }
 
-interface GlobalBinding {
+export interface GlobalBinding {
   name: string;
   key: string;
   file: string;
@@ -199,11 +204,15 @@ interface GlobalBinding {
   isFunction: boolean;
   ownUnit: number | null; // index of the declaring unit (functions)
   usedBy: Set<number>;
+  /** Index of the unit whose statement declares this binding. */
+  declUnit: number;
 }
 
-interface AliasBinding {
+export interface AliasBinding {
   key: string;
   region: string | null;
+  /** Index of the unit whose statement declares this alias. */
+  declUnit: number;
 }
 
 interface Ctx {
@@ -215,7 +224,22 @@ interface Ctx {
   unattributed: number;
 }
 
-export function analyzeCoupling(input: CouplingInput): CouplingReport {
+/**
+ * The full analysis context behind a coupling report — exported so the v3
+ * slicer (src/pipeline/slice.ts) shares this exact attribution machinery
+ * instead of duplicating it. Divergence here would be silent wrong-behavior.
+ */
+export interface CouplingInternals {
+  facts: RegionFacts;
+  units: Unit[];
+  globals: Map<string, GlobalBinding>;
+  aliases: Map<string, AliasBinding>;
+  edges: CouplingEdge[];
+  attributed: number;
+  unattributed: number;
+}
+
+export function analyzeCouplingInternals(input: CouplingInput): CouplingInternals {
   const facts = extractRegions(normalize(input.html));
   const ctx: Ctx = { facts, globals: new Map(), aliases: new Map(), units: [], attributed: 0, unattributed: 0 };
 
@@ -238,6 +262,7 @@ export function analyzeCoupling(input: CouplingInput): CouplingReport {
         lineOffset: script.lineOffset ?? 0,
         scope,
         seedRegion: null,
+        unattributedLookups: [],
       });
       declareBindings(stmt, sourceFile, script, scope, unitIndex, ctx);
     }
@@ -254,27 +279,40 @@ export function analyzeCoupling(input: CouplingInput): CouplingReport {
       lineOffset: 0,
       scope: '',
       seedRegion: handler.region,
+      unattributedLookups: [],
     });
   }
 
   // Pass 2 — attribute every unit and link its global uses.
   ctx.units.forEach((unit, index) => walkUnit(unit, index, ctx));
 
-  const edges = collectEdges(ctx);
-  const { recommendation, reasons } = recommend(facts.regions, edges, ctx);
-
-  return CouplingReportSchema.parse({
-    regions: [...facts.regions].sort((a, b) => a.line - b.line || a.name.localeCompare(b.name)),
-    edges,
+  return {
+    facts,
+    units: ctx.units,
+    globals: ctx.globals,
+    aliases: ctx.aliases,
+    edges: collectEdges(ctx),
     attributed: ctx.attributed,
     unattributed: ctx.unattributed,
+  };
+}
+
+export function analyzeCoupling(input: CouplingInput): CouplingReport {
+  const internals = analyzeCouplingInternals(input);
+  const { recommendation, reasons } = recommend(internals.facts.regions, internals.edges, internals);
+
+  return CouplingReportSchema.parse({
+    regions: [...internals.facts.regions].sort((a, b) => a.line - b.line || a.name.localeCompare(b.name)),
+    edges: internals.edges,
+    attributed: internals.attributed,
+    unattributed: internals.unattributed,
     recommendation,
     reasons,
   });
 }
 
-/** Directory variant mirroring analyzeWebPart's input discovery. */
-export function analyzeCouplingDir(inputDir: string): CouplingReport {
+/** Builds the CouplingInput for a web part folder (mirrors analyzeWebPart's discovery). */
+export function loadCouplingInput(inputDir: string): CouplingInput {
   const html = readFileSync(join(inputDir, 'index.html'), 'utf8');
   const htmlFacts = analyzeHtml(html);
   const scripts: CouplingScript[] = [];
@@ -286,7 +324,12 @@ export function analyzeCouplingDir(inputDir: string): CouplingReport {
   for (const inline of htmlFacts.inlineScripts) {
     scripts.push({ file: 'index.html', code: inline.content, lineOffset: inline.lineOffset });
   }
-  return analyzeCoupling({ html, scripts });
+  return { html, scripts };
+}
+
+/** Directory variant mirroring analyzeWebPart's input discovery. */
+export function analyzeCouplingDir(inputDir: string): CouplingReport {
+  return analyzeCoupling(loadCouplingInput(inputDir));
 }
 
 function normalize(text: string): string {
@@ -379,6 +422,7 @@ function declareBindings(
       isFunction: true,
       ownUnit: unitIndex,
       usedBy: new Set(),
+      declUnit: unitIndex,
     });
     return;
   }
@@ -394,6 +438,7 @@ function declareBindings(
       ctx.aliases.set(keyFor(decl.name.text), {
         key: keyFor(decl.name.text),
         region: resolved.regions.length === 1 ? (resolved.regions[0] ?? null) : null,
+        declUnit: unitIndex,
       });
       continue;
     }
@@ -407,6 +452,7 @@ function declareBindings(
       isFunction: false,
       ownUnit: null,
       usedBy: new Set(),
+      declUnit: unitIndex,
     });
   }
 }
@@ -513,6 +559,7 @@ function walkUnit(unit: Unit, unitIndex: number, ctx: Ctx): void {
           unit.targets.push(lookup.value);
         } else {
           ctx.unattributed += 1;
+          unit.unattributedLookups.push(lookup.value);
         }
       }
     }
@@ -598,7 +645,7 @@ function collectEdges(ctx: Ctx): CouplingEdge[] {
 function recommend(
   regions: Region[],
   edges: CouplingEdge[],
-  ctx: Ctx,
+  ctx: Pick<Ctx, 'attributed' | 'unattributed'>,
 ): { recommendation: CouplingReport['recommendation']; reasons: string[] } {
   if (regions.length <= 1) {
     return {

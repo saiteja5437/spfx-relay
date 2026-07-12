@@ -81,7 +81,8 @@ export function buildPlan(args: {
   return MigrationPlanSchema.parse(plan);
 }
 
-function strategyFrom(coupling: CouplingReport): Strategy {
+/** Exported so the v3 slicer derives part names from the SAME logic (no divergence). */
+export function strategyFrom(coupling: CouplingReport): Strategy {
   const used = new Set<string>();
   const parts = coupling.regions.map((region) => {
     let name = componentNameFrom(region.name);

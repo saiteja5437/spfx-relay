@@ -1,6 +1,6 @@
 # v3 execution state
 
-**Next step:** 05
+**Next step:** 06
 
 **Blocked:** (nothing)
 
@@ -23,3 +23,12 @@
   hand-computed expected.json + coupling.json (matched the analyzer first run);
   corpus test asserts coupling.json when present; eval skips migratable items
   without eval.json (message points at step 08). 136 tests green; scorecard identical.
+- 2026-07-12 — Step 05 done (judgment): `slicePartContexts` in src/pipeline/slice.ts,
+  sharing coupling.ts machinery via new exported `analyzeCouplingInternals` (zero
+  behavior change — corpus determinism tests stayed green). Judgment calls flagged:
+  (a) PartContext gained `assumptions: string[]` beyond the blueprint contract — the
+  step requires duplication/unattributed facts to reach the report and the contract
+  had no carrier field; (b) a region-less unit whose couplable globals home in TWO
+  parts throws SliceRefusalError (refusal-over-guessing; case absent from blueprint);
+  (c) inline HTML handlers travel with the region HTML slice, not the script slice.
+  6 new tests incl. leakage-both-directions, fixpoint preamble, override path. 142 green.
