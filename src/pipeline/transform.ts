@@ -1,7 +1,7 @@
 import type { ModelProvider, ProviderResult } from '../providers/types';
 import type { AnalysisResult } from '../types/ir';
 import type { ResponseCache } from './cache';
-import { buildTransformContext, type SourceFile } from './context';
+import { buildTransformContext, type PartPromptScope, type SourceFile } from './context';
 import type { RunManifest } from './manifest';
 import type { MigrationPlan } from './plan';
 import { TransformResultSchema, type TransformResult } from './prompts';
@@ -30,6 +30,8 @@ export interface TransformArgs {
   sources: SourceFile[];
   /** Verification feedback from a failed previous attempt (compile-repair loop). */
   feedback?: string;
+  /** v3: decomposed-part scope — part-scoped prompt + manifest tagging. */
+  part?: PartPromptScope;
   cache?: ResponseCache;
   manifest?: RunManifest;
   maxTokens?: number;
@@ -45,11 +47,13 @@ export async function runTransform(args: TransformArgs): Promise<ProviderResult<
     sources: args.sources,
     feedback: args.feedback,
     maxChars: args.maxContextChars,
+    part: args.part,
   });
 
   return runStructuredStep(
     {
       name: 'transform',
+      ...(args.part ? { part: args.part.name } : {}),
       provider: args.provider,
       system: context.system,
       prompt: context.prompt,

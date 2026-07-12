@@ -9,6 +9,8 @@ import type { ProviderUsage } from '../providers/types';
 
 export interface StepRecord {
   step: string;
+  /** v3: which decomposed part this step served; absent for single-part runs. */
+  part?: string;
   provider: string;
   model: string;
   /** The cache key — identifies the exact (provider, model, prompts, schema) tuple. */

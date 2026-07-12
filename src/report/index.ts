@@ -11,6 +11,17 @@ import type { VerifyResult } from '../verify/types';
  * handle is stated here explicitly; nothing is left implicit in the code.
  */
 
+/** One decomposed part's outcome for the report (v3 step 06). */
+export interface PartReport {
+  name: string;
+  ok: boolean;
+  transform?: TransformResult;
+  gates?: GateResults;
+  attempts?: number;
+  /** Tool-side slicing decisions (duplications, unattributed lookups). */
+  sliceAssumptions: string[];
+}
+
 export interface ReportArgs {
   status: 'migrated' | 'blocked' | 'failed';
   plan: MigrationPlan;
@@ -19,6 +30,8 @@ export interface ReportArgs {
   transform?: TransformResult;
   gates?: GateResults;
   transformAttempts?: number;
+  /** Per-part outcomes for a decompose run — renders ### subsections. */
+  parts?: PartReport[];
   bundle?: BundleResult;
   emittedFiles?: string[];
   manifest: RunManifest;
@@ -74,6 +87,39 @@ export function renderReport(args: ReportArgs): string {
     }
   }
 
+  if (args.parts && args.parts.length > 0) {
+    lines.push('', '## Transform (per part)');
+    for (const part of args.parts) {
+      lines.push('', `### ${part.name}`, '', part.ok ? '**Verified.**' : '**FAILED verification.**');
+      if (part.transform) {
+        lines.push('', part.transform.componentDescription || '_No description provided._');
+        lines.push('', '**Assumptions the model made:**', '');
+        lines.push(...listOrNone(part.transform.assumptions));
+        lines.push('', '**Behavior the model could NOT map (review required):**', '');
+        lines.push(...listOrNone(part.transform.unhandled));
+      }
+      lines.push('', '**Slicing decisions (tool-side):**', '');
+      lines.push(...listOrNone(part.sliceAssumptions));
+    }
+
+    lines.push('', '## Verification (per part)', '');
+    for (const part of args.parts) {
+      if (!part.gates) continue;
+      lines.push(`- ${part.name} — TypeScript: ${gateLabel(part.gates.typecheck)}, Lint: ${gateLabel(part.gates.lint)}` +
+        (part.attempts !== undefined ? `, attempts: ${part.attempts}` : ''));
+      for (const issue of [...part.gates.typecheck.issues, ...part.gates.lint.issues]) {
+        lines.push(`  - \`${issue.file}:${issue.line}\` ${issue.message}`);
+      }
+    }
+    if (args.bundle) {
+      lines.push('', `- SPFx bundle seal: **${args.bundle.status.toUpperCase()}** — ${firstLine(args.bundle.detail)}`);
+      const rest = args.bundle.detail.split('\n').slice(1).join('\n').trim();
+      if (rest.length > 0) {
+        lines.push('', '```', rest, '```');
+      }
+    }
+  }
+
   if (args.transform) {
     lines.push('', '## Transform', '', args.transform.componentDescription || '_No description provided._');
     lines.push('', '### Assumptions the model made', '');
@@ -107,15 +153,19 @@ export function renderReport(args: ReportArgs): string {
   }
 
   const usage = args.manifest.totalUsage();
+  // The Part column appears only when a step is part-tagged, so v1 single-part
+  // reports stay byte-identical.
+  const withParts = args.manifest.steps.some((step) => step.part !== undefined);
   lines.push(
     '',
     '## LLM usage',
     '',
-    `| Step | Model | Attempts | Cache | Tokens in/out | Outcome |`,
-    `|---|---|---|---|---|---|`,
+    withParts ? `| Step | Model | Attempts | Cache | Tokens in/out | Outcome | Part |` : `| Step | Model | Attempts | Cache | Tokens in/out | Outcome |`,
+    withParts ? `|---|---|---|---|---|---|---|` : `|---|---|---|---|---|---|`,
     ...args.manifest.steps.map(
       (step) =>
-        `| ${step.step} | ${step.model} | ${step.attempts} | ${step.cacheHit ? 'hit' : 'miss'} | ${step.usage.inputTokens}/${step.usage.outputTokens} | ${step.outcome} |`,
+        `| ${step.step} | ${step.model} | ${step.attempts} | ${step.cacheHit ? 'hit' : 'miss'} | ${step.usage.inputTokens}/${step.usage.outputTokens} | ${step.outcome} |` +
+        (withParts ? ` ${step.part ?? ''} |` : ''),
     ),
     '',
     `Total tokens: ${usage.inputTokens} in / ${usage.outputTokens} out.`,

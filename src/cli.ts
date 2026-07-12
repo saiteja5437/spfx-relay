@@ -2,18 +2,20 @@ import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
-import { analyzeCouplingDir, type CouplingReport } from './analyze/coupling';
+import { analyzeCouplingDir, loadCouplingInput, type CouplingReport } from './analyze/coupling';
 import { analyzeWebPart } from './analyze/index';
-import { emitProject } from './emit/index';
+import { emitMultiPartProject, emitProject } from './emit/index';
 import { runEval } from './eval/index';
 import { renderEvalMarkdown } from './eval/render';
 import { FileResponseCache, type ResponseCache } from './pipeline/cache';
 import { loadSourceFiles } from './pipeline/context';
 import { RunManifest } from './pipeline/manifest';
+import { runMultiPartTransform } from './pipeline/multipart';
 import { buildPlan, type MigrationPlan } from './pipeline/plan';
+import { SliceRefusalError, slicePartContexts, type PartContext } from './pipeline/slice';
 import { runVerifiedTransform } from './pipeline/verifiedTransform';
 import { createProvider, type ProviderConfig } from './providers/index';
-import { renderReport, type ReportArgs } from './report/index';
+import { renderReport, type PartReport, type ReportArgs } from './report/index';
 import { runBundleSeal, type BundleResult } from './verify/bundle';
 
 /**
@@ -270,6 +272,22 @@ export async function main(argv: string[]): Promise<number> {
   }
   for (const note of decision.notes) console.log(`\n${note}`);
 
+  // Decompose slices before approval: a slice refusal must block the run
+  // before any provider is created (refusal-over-guessing, exit 2).
+  let parts: PartContext[] | undefined;
+  if (decision.chosen === 'decompose') {
+    try {
+      parts = slicePartContexts(loadCouplingInput(inputDir), coupling);
+    } catch (error) {
+      if (error instanceof SliceRefusalError) {
+        console.error(`\n${error.message}`);
+        writeRunArtifacts(outDir, { status: 'blocked', plan, manifest }, manifest);
+        return 2;
+      }
+      throw error;
+    }
+  }
+
   if (!(await approved(options.yes))) {
     console.log('Aborted — nothing was written.');
     return 0;
@@ -278,6 +296,62 @@ export async function main(argv: string[]): Promise<number> {
   const provider = createProvider(providerConfigFrom(options, process.env));
   const caps = provider.capabilities();
   console.log(`\nTransforming with ${caps.name}/${caps.model} …`);
+
+  if (parts) {
+    const run = await runMultiPartTransform({
+      provider,
+      plan,
+      analysis,
+      parts,
+      inputDir,
+      cache,
+      manifest,
+      onProgress: (message) => console.log(`  ${message}`),
+    });
+    const partReports: PartReport[] = run.results.map(({ part, verified }) => ({
+      name: part.name,
+      ok: verified.ok,
+      transform: verified.result.value,
+      gates: verified.gates,
+      attempts: verified.attempts,
+      sliceAssumptions: part.assumptions,
+    }));
+
+    if (!run.ok) {
+      const failed = partReports.filter((part) => !part.ok).map((part) => part.name);
+      console.error(`Part(s) failed verification: ${failed.join(', ')}.`);
+      writeRunArtifacts(outDir, { status: 'failed', plan, chosen: decision.chosen, parts: partReports, manifest }, manifest);
+      return 3;
+    }
+
+    console.log('All parts verified. Emitting solution …');
+    const emitted = emitMultiPartProject({
+      outDir,
+      solutionBaseName: plan.componentName,
+      parts: run.results.map(({ part, verified }) => ({
+        name: part.name,
+        componentCode: verified.result.value.componentCode,
+      })),
+      inputDir,
+      assets: analysis.ir.assets,
+    });
+
+    let bundle: BundleResult;
+    if (options.skipBundle) {
+      bundle = { status: 'skipped', detail: 'Skipped via --skip-bundle.' };
+    } else {
+      console.log('Running the SPFx bundle seal (npm install + gulp bundle) — this can take a few minutes …');
+      bundle = runBundleSeal(outDir);
+    }
+    console.log(`Bundle seal: ${bundle.status.toUpperCase()}`);
+
+    writeRunArtifacts(
+      outDir,
+      { status: 'migrated', plan, chosen: decision.chosen, parts: partReports, bundle, emittedFiles: emitted.files, manifest },
+      manifest,
+    );
+    return bundle.status === 'failed' ? 4 : 0;
+  }
 
   const sources = loadSourceFiles(inputDir, plan.sourceFiles);
   const verified = await runVerifiedTransform({ provider, plan, analysis, sources, cache, manifest });

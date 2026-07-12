@@ -41,7 +41,7 @@ export async function runVerifiedTransform(
 
   for (let attempt = 1; attempt <= maxRepairRounds + 1; attempt++) {
     const result = await runTransform({ ...args, feedback });
-    const gates = await checkGates(args.plan.componentName, result.value.componentCode);
+    const gates = await checkGates(args.part?.name ?? args.plan.componentName, result.value.componentCode);
     if (gates.typecheck.ok && gates.lint.ok) {
       return { ok: true, attempts: attempt, result, gates };
     }

@@ -16,6 +16,8 @@ import type { RunManifest } from './manifest';
 
 export interface StepOptions {
   name: string;
+  /** v3: decomposed part this call serves — recorded on the manifest step. */
+  part?: string;
   provider: ModelProvider;
   system: string;
   prompt: string;
@@ -56,6 +58,7 @@ export async function runStructuredStep<T>(options: StepOptions, schema: ZodType
     if (check.success) {
       manifest?.record({
         step: name,
+        ...(options.part ? { part: options.part } : {}),
         provider: capabilities.name,
         model: cached.model,
         promptHash: key,
@@ -83,6 +86,7 @@ export async function runStructuredStep<T>(options: StepOptions, schema: ZodType
       cache?.set(key, { rawText: result.rawText, value: result.value, model: result.model, usage: result.usage });
       manifest?.record({
         step: name,
+        ...(options.part ? { part: options.part } : {}),
         provider: capabilities.name,
         model: result.model,
         promptHash: key,
@@ -103,6 +107,7 @@ export async function runStructuredStep<T>(options: StepOptions, schema: ZodType
 
   manifest?.record({
     step: name,
+    ...(options.part ? { part: options.part } : {}),
     provider: capabilities.name,
     model: capabilities.model,
     promptHash: key,

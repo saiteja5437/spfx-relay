@@ -43,6 +43,74 @@ export function renderScaffold(tokens: ScaffoldTokens, templatesDir = TEMPLATES_
     .sort((a, b) => a.path.localeCompare(b.path));
 }
 
+export interface MultiPartScaffoldTokens {
+  /** Base for the solution name (the migration name), e.g. 'MultiIndependent'. */
+  solutionBaseName: string;
+  /** Part component names in strategy order. */
+  partNames: string[];
+}
+
+/**
+ * One SPFx solution, N web parts (v3 step 06). Solution-level files render
+ * once; everything under src/webparts/ renders once per part; config.json is
+ * built programmatically with one bundle entry per part. Web part GUIDs are
+ * seeded from exactly `${solutionName}/${partName}` so adding a part never
+ * changes existing parts' GUIDs.
+ */
+export function renderMultiPartScaffold(tokens: MultiPartScaffoldTokens, templatesDir = TEMPLATES_DIR): ScaffoldFile[] {
+  const solutionName = `${kebabCase(tokens.solutionBaseName)}-spfx`;
+  const solutionReplacements: Record<string, string> = {
+    __SOLUTION_NAME__: solutionName,
+    __SOLUTION_GUID__: deterministicGuid(`solution:${solutionName}`),
+  };
+
+  const files: ScaffoldFile[] = [];
+  for (const absolute of listFiles(templatesDir)) {
+    const relPath = relative(templatesDir, absolute).replaceAll('\\', '/');
+    const raw = readFileSync(absolute, 'utf8').replaceAll('\r\n', '\n');
+
+    if (relPath.startsWith('src/webparts/')) {
+      for (const part of tokens.partNames) {
+        const replacements: Record<string, string> = {
+          ...solutionReplacements,
+          __COMPONENT_NAME__: part,
+          __COMPONENT_LOWER__: part.toLowerCase(),
+          __COMPONENT_TITLE__: titleCase(part),
+          __WEBPART_GUID__: deterministicGuid(`${solutionName}/${part}`),
+        };
+        files.push({ path: substitute(relPath, replacements), content: substitute(raw, replacements) });
+      }
+    } else if (relPath === 'config/config.json') {
+      files.push({ path: relPath, content: multiPartConfigJson(tokens.partNames) });
+    } else {
+      files.push({ path: relPath, content: substitute(raw, solutionReplacements) });
+    }
+  }
+  return files.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+function multiPartConfigJson(partNames: string[]): string {
+  const bundles: Record<string, unknown> = {};
+  for (const part of partNames) {
+    bundles[`${part.toLowerCase()}-web-part`] = {
+      components: [
+        {
+          entrypoint: `./lib/webparts/${part.toLowerCase()}/${part}WebPart.js`,
+          manifest: `./src/webparts/${part.toLowerCase()}/${part}WebPart.manifest.json`,
+        },
+      ],
+    };
+  }
+  const config = {
+    $schema: 'https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json',
+    version: '2.0',
+    bundles,
+    externals: {},
+    localizedResources: {},
+  };
+  return `${JSON.stringify(config, null, 2)}\n`;
+}
+
 /** RFC-4122-shaped GUID derived from a seed — stable across runs by design. */
 export function deterministicGuid(seed: string): string {
   const hex = createHash('sha256').update(seed).digest('hex');

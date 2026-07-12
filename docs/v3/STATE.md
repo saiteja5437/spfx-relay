@@ -1,6 +1,6 @@
 # v3 execution state
 
-**Next step:** 06
+**Next step:** 07
 
 **Blocked:** (nothing)
 
@@ -32,3 +32,12 @@
   parts throws SliceRefusalError (refusal-over-guessing; case absent from blueprint);
   (c) inline HTML handlers travel with the region HTML slice, not the script slice.
   6 new tests incl. leakage-both-directions, fixpoint preamble, override path. 142 green.
+- 2026-07-12 — Step 06 done: renderMultiPartScaffold (one solution, N parts, GUID seed
+  exactly `${solutionName}/${partName}`), emitMultiPartProject, sequential
+  runMultiPartTransform (fails AFTER attempting all parts), manifest steps gain
+  optional `part`, report per-part sections. Interpretations flagged: (a) part-scoped
+  prompt omits the whole-page IR (the slice IS the context; page-wide IR describes DOM
+  the part must not touch) — eval-justified in step 08; (b) usage-table Part column is
+  conditional on part-tagged steps, resolving the step's byte-identical-vs-blank-column
+  contradiction in favor of byte-identity; (c) a failed multi-part run emits no project
+  files (v1 nothing-unverified ethic). 145 tests green.
