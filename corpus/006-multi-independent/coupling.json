@@ -1,0 +1,13 @@
+{
+  "regions": [
+    { "name": "news-panel", "tag": "div", "line": 4 },
+    { "name": "stock-ticker", "tag": "div", "line": 9 }
+  ],
+  "edges": [],
+  "attributed": 4,
+  "unattributed": 0,
+  "recommendation": "decompose",
+  "reasons": [
+    "2 independent regions with no detected shared state — safe to split into separate web parts."
+  ]
+}

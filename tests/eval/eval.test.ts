@@ -69,6 +69,18 @@ describe('runEval', () => {
     });
   });
 
+  it('skips a migratable item without eval.json instead of burning a transform on it', async () => {
+    // 300-no-eval exists in the fixture corpus with no eval.json: it must be
+    // skipped with a message, never reach the provider, and not appear in results.
+    const { provider, calls } = scriptedProvider([transformOf(GOOD_CODE)]);
+    const progress: string[] = [];
+    const run = await runEval({ provider, corpusDir: evalCorpus, onProgress: (m) => progress.push(m) });
+
+    expect(run.results.map((r) => r.item)).toEqual(['100-ok', '200-blocked']);
+    expect(calls).toHaveLength(1);
+    expect(progress.join('\n')).toContain('Skipping 300-no-eval');
+  });
+
   it('scores a failed verification honestly and keeps evaluating', async () => {
     const { provider } = scriptedProvider([transformOf(BAD_CODE), transformOf(BAD_CODE)]);
     const run = await runEval({ provider, corpusDir: evalCorpus, maxRepairRounds: 1 });

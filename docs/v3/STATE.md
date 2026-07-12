@@ -1,6 +1,6 @@
 # v3 execution state
 
-**Next step:** 04
+**Next step:** 05
 
 **Blocked:** (nothing)
 
@@ -19,3 +19,7 @@
   Chosen line only when it differs), spa runs the v1 single-component pipeline untouched
   (e2e scripted test over multi-part-coupled: ONE component). Eval rerun: scorecard
   numbers identical (4/4, 5/5, 12/12, avg 1 attempt). 127 tests green.
+- 2026-07-12 — Step 04 done: corpus 006-multi-independent / 007-multi-coupled with
+  hand-computed expected.json + coupling.json (matched the analyzer first run);
+  corpus test asserts coupling.json when present; eval skips migratable items
+  without eval.json (message points at step 08). 136 tests green; scorecard identical.

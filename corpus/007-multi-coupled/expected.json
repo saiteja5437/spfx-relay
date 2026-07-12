@@ -1,0 +1,18 @@
+{
+  "ir": {
+    "assets": [
+      { "kind": "script", "path": "cart.js", "file": "index.html", "line": 11, "external": false, "exists": true }
+    ],
+    "domOperations": [
+      { "api": "jquery", "method": "text", "target": "#cart-count", "file": "cart.js", "line": 6 }
+    ],
+    "eventHandlers": [
+      { "via": "jquery", "event": "click", "target": "#add-item", "file": "cart.js", "line": 2 },
+      { "via": "jquery", "event": "click", "target": "#cart-refresh", "file": "cart.js", "line": 5 }
+    ],
+    "networkCalls": [],
+    "dependencies": []
+  },
+  "findings": [],
+  "refusals": []
+}

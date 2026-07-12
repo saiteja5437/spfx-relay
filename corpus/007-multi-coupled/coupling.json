@@ -1,0 +1,16 @@
+{
+  "regions": [
+    { "name": "product-list", "tag": "div", "line": 4 },
+    { "name": "cart-summary", "tag": "div", "line": 7 }
+  ],
+  "edges": [
+    { "from": "cart-summary", "to": "product-list", "kind": "shared-global", "evidence": "cartTotal", "file": "cart.js", "line": 1 }
+  ],
+  "attributed": 3,
+  "unattributed": 0,
+  "recommendation": "spa",
+  "reasons": [
+    "2 regions share state — splitting them would break behavior; migrate as one web part (SPA).",
+    "shared-global 'cartTotal' links cart-summary and product-list"
+  ]
+}

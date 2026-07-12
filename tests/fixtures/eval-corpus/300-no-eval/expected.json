@@ -1,0 +1,11 @@
+{
+  "ir": {
+    "assets": [],
+    "domOperations": [],
+    "eventHandlers": [],
+    "networkCalls": [],
+    "dependencies": []
+  },
+  "findings": [],
+  "refusals": []
+}

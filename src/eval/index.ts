@@ -93,6 +93,15 @@ export async function runEval(args: EvalRunArgs): Promise<EvalRun> {
 
   const results: EvalItemResult[] = [];
   for (const item of items) {
+    // A migratable item without eval.json has nothing the LLM stage can be
+    // scored against yet — skip it loudly rather than burn a transform on it.
+    // (Blocked items never reach the model, so they are always evaluable.)
+    const itemDir = join(args.corpusDir, item);
+    const expected = JSON.parse(readFileSync(join(itemDir, 'expected.json'), 'utf8')) as { refusals: unknown[] };
+    if (expected.refusals.length === 0 && !existsSync(join(itemDir, 'eval.json'))) {
+      args.onProgress?.(`Skipping ${item} — no eval.json (multi-part eval checks arrive in v3 step 08).`);
+      continue;
+    }
     args.onProgress?.(`Evaluating ${item} …`);
     results.push(await evalItem(args, item));
   }
