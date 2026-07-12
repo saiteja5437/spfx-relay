@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
+import { analyzeCouplingDir } from './analyze/coupling';
 import { analyzeWebPart } from './analyze/index';
 import { emitProject } from './emit/index';
 import { runEval } from './eval/index';
@@ -130,7 +131,7 @@ export function providerConfigFrom(
   return { provider: 'ollama', model: options.model ?? 'llama3.1' };
 }
 
-function printPlan(plan: MigrationPlan): void {
+export function renderPlan(plan: MigrationPlan): string {
   const lines = [
     '',
     `Migration plan — ${plan.componentName}`,
@@ -140,6 +141,11 @@ function printPlan(plan: MigrationPlan): void {
     `  Network calls:     ${plan.stats.networkCalls}`,
     `  Dependencies:      ${plan.stats.dependencies}`,
   ];
+  if (plan.strategy) {
+    lines.push(`  Strategy:          ${plan.strategy.recommendation}`);
+    for (const part of plan.strategy.parts) lines.push(`    ${part.name}  ←  ${part.rootSelector}`);
+    for (const reason of plan.strategy.reasons) lines.push(`    ${reason}`);
+  }
   if (plan.findings.length > 0) {
     lines.push(`  Flagged issues:`);
     for (const f of plan.findings) lines.push(`    - [${f.rule}] ${f.file}:${f.line} ${f.message}`);
@@ -149,7 +155,7 @@ function printPlan(plan: MigrationPlan): void {
     for (const r of plan.refusals) lines.push(`    - [${r.construct}] ${r.file}:${r.line} ${r.reason}`);
   }
   lines.push(plan.blocked ? '  => Plan is BLOCKED: no transform will run.' : '  => Ready to transform.');
-  console.log(lines.join('\n'));
+  return lines.join('\n');
 }
 
 async function approved(yes: boolean): Promise<boolean> {
@@ -190,8 +196,9 @@ export async function main(argv: string[]): Promise<number> {
 
   console.log(`Analyzing ${inputDir} …`);
   const analysis = analyzeWebPart(inputDir);
-  const plan = buildPlan({ analysis, name: options.name ?? migrationNameFrom(inputDir) });
-  printPlan(plan);
+  const coupling = analyzeCouplingDir(inputDir);
+  const plan = buildPlan({ analysis, name: options.name ?? migrationNameFrom(inputDir), coupling });
+  console.log(renderPlan(plan));
 
   if (plan.blocked) {
     writeRunArtifacts(outDir, { status: 'blocked', plan, manifest }, manifest);

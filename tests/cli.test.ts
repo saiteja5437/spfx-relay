@@ -1,6 +1,10 @@
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { migrationNameFrom, parseCliArgs, providerConfigFrom } from '../src/cli';
+import { analyzeCouplingDir } from '../src/analyze/coupling';
+import { analyzeWebPart } from '../src/analyze/index';
+import { migrationNameFrom, parseCliArgs, providerConfigFrom, renderPlan } from '../src/cli';
+import { buildPlan } from '../src/pipeline/plan';
 
 describe('parseCliArgs', () => {
   it('parses a full migrate invocation', () => {
@@ -70,6 +74,31 @@ describe('migrationNameFrom', () => {
   it('accepts an explicit --name option in parsing', () => {
     const options = parseCliArgs(['migrate', './x', '--out', './y', '--name', 'TeamDirectory']);
     expect(options).toMatchObject({ name: 'TeamDirectory' });
+  });
+});
+
+describe('renderPlan', () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+
+  it('shows the coupling strategy with recommendation, parts, and reasons', () => {
+    const fixture = join(here, 'fixtures', 'multi-part-independent');
+    const plan = buildPlan({
+      analysis: analyzeWebPart(fixture),
+      name: 'multi-part-independent',
+      coupling: analyzeCouplingDir(fixture),
+    });
+
+    const text = renderPlan(plan);
+    expect(text).toContain('Strategy:          decompose');
+    expect(text).toContain('    NewsPanel  ←  #news-panel');
+    expect(text).toContain('    StockTicker  ←  #stock-ticker');
+    expect(text).toContain('safe to split into separate web parts');
+  });
+
+  it('omits the strategy section when the plan has none (v1 flow)', () => {
+    const fixture = join(here, 'fixtures', 'multi-part-independent');
+    const plan = buildPlan({ analysis: analyzeWebPart(fixture), name: 'multi-part-independent' });
+    expect(renderPlan(plan)).not.toContain('Strategy:');
   });
 });
 

@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { analyzeCouplingDir } from '../analyze/coupling';
 import { analyzeWebPart } from '../analyze/index';
 import { stableStringify, type ResponseCache } from '../pipeline/cache';
 import { loadSourceFiles } from '../pipeline/context';
@@ -115,7 +116,8 @@ async function evalItem(args: EvalRunArgs, item: string): Promise<EvalItemResult
 
   const analysis = analyzeWebPart(inputDir);
   const analyzerConformant = stableStringify(analysis) === stableStringify(expected);
-  const plan = buildPlan({ analysis, name: item });
+  const coupling = analyzeCouplingDir(inputDir);
+  const plan = buildPlan({ analysis, name: item, coupling });
   const refusalCorrect = plan.blocked === (expectedOutcome === 'blocked');
 
   const base = { item, expectedOutcome, analyzerConformant, refusalCorrect };
