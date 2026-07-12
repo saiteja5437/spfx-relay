@@ -64,6 +64,7 @@ stylesheets, and images it references.
 | `--provider anthropic\|ollama` | Model provider (default `anthropic`) |
 | `--model <id>` | Model override (defaults: `claude-opus-4-8` / `llama3.1`) |
 | `--name <PascalCase>` | Component name override (otherwise derived from the folder) |
+| `--strategy spa\|decompose` | Override the v3 strategy recommendation (safe direction only — see below) |
 | `--yes` | Skip the plan-approval prompt |
 | `--no-cache` | Bypass the response cache |
 | `--skip-bundle` | Skip the final `npm install && gulp bundle` seal |
@@ -95,12 +96,40 @@ that doesn't exist (compiled clean, failed webpack); the eval's per-part checks 
 one preamble rule later 006 scored 8/8 with zero cross-part leakage, and the emitted
 two-web-part solution seals for real.
 
+## v3: multi-web-part decomposition
+
+Legacy pages often compose several widgets as sibling `<div id=…>` blocks. v3 decides —
+deterministically, from AST evidence, before any model call — whether such a page should
+become several web parts or stay whole:
+
+- **Coupling analysis** (pure AST, runs on every plan): candidate regions are body-direct
+  containers with ids; scripts are split into top-level units after unwrapping
+  `$(document).ready`-style shells; every statically-resolvable DOM lookup is attributed to
+  a region. Two signals couple regions: a **shared mutable global** used across regions, and
+  a **single unit touching two regions**. `const` primitives and pure helper functions don't
+  couple — they are duplicable.
+- **Strategy** = `single` (≤1 region) · `decompose` (independent regions) · `spa` (coupled,
+  or too many unattributable lookups — refusal-over-guessing: never split on evidence the
+  analyzer doesn't have). The plan and the report show the strategy, the parts, and the
+  coupling evidence; the human approves it like everything else.
+- **Safe-direction override** (`--strategy`): merging (`→ spa`) is always allowed — it cannot
+  break behavior. Splitting (`→ decompose`) against detected coupling edges is **refused**
+  (exit 2, edges listed); it is allowed only when spa came from unattributed-lookup tolerance
+  alone, with a loud warning.
+- **Decompose runs** slice each part's exact context (region HTML via parse5, its attributed
+  script units, shared CSS duplicated honestly, transitively-referenced helpers), transform
+  parts sequentially through the same sealed steps, verify them in one shared tsc program
+  with diagnostics routed per part, and emit **one SPFx solution with N web parts**
+  (deterministic per-part GUIDs, one bundle entry each). The seal additionally asserts
+  `dist/` holds one bundle per part. `spa` runs the proven v1 whole-page pipeline — one
+  component owning the page.
+
 ## V1 scope
 
 | In | Out (detected and refused) |
 |---|---|
 | Self-contained HTML + CSS + vanilla JS/jQuery | jQuery plugin ecosystems (ag-Grid, DevExtreme, DataTables, …) |
-| Single web part per run | Multi-page apps |
+| Single web part per run (v3 adds multi-widget decomposition) | Multi-page apps |
 | Flagging bad practices (hardcoded secrets, broken asset refs) | Behavioral-equivalence guarantees |
 | Anthropic Claude + Ollama providers | Other frameworks / providers (roadmap) |
 
@@ -124,6 +153,12 @@ Stated honestly, because the tool's credibility depends on it:
   schema/compile gates more often. The gates make that safe (loud failure, never bad output)
   but not fast — prefer hosted models or larger code-tuned local models, and check the
   scorecard for the model you plan to use.
+- **Coupling analysis approximations (v3, documented in code):** identifier shadowing inside
+  handlers is ignored; ready-shell unwrapping goes one level deep (a nested
+  `$(document).ready` stays one unit); property writes (`el.innerHTML = …`) attribute via
+  the lookup that produced the element, inheriting v1's property-write blind spot. All of
+  them err toward *more* coupling — i.e. toward the safe spa recommendation, never toward
+  a risky split.
 - **The plan-approval prompt is interactive** — use `--yes` in CI/scripts.
 - Developed on Windows; prompts and outputs are line-ending-normalized for cross-platform
   determinism, but there is no CI pipeline yet.
@@ -154,7 +189,7 @@ See `CLAUDE.md` for the design decisions, invariants, and roadmap.
 - **v2 — plugin registry:** upgrade refusals to user-approved mappings (same plugin via its
   React wrapper, or a recommended replacement) with version and license metadata; richer
   plan approval.
-- **v3 — multi-web-part decomposition** with shared-module extraction.
+- ~~v3 — multi-web-part decomposition~~ — shipped (see the v3 section above).
 - **v4 — further framework targets** and providers (OpenAI/Azure OpenAI adapter).
 
 ## Status
@@ -166,6 +201,9 @@ See `CLAUDE.md` for the design decisions, invariants, and roadmap.
 - [x] Milestone 5 — eval harness and per-model scorecard
 - [x] Bundle seal live-proven — real `npm install` + `gulp bundle` (SPFx 1.21.1, Node 22.14)
       passes against an emitted project; seal failures now quote the toolchain's full output
+- [x] v3 — coupling analysis, single/decompose/spa strategy with safe-direction override,
+      context slicing, N-part solution emit + per-part verification, multi-part eval; the
+      two-web-part corpus item transforms, verifies, and seals live (one bundle per part)
 
 ## License
 

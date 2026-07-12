@@ -60,16 +60,20 @@ system level even though the model is probabilistic:
 - Milestone workflow: present a short outline, get approval, build, run gates, update
   README status, commit with a detailed message.
 
-## Current state (end of v1)
+## Current state (v1 + v3 complete)
 
-All 5 v1 milestones complete; ~109 offline tests. Live-proven with Ollama
-(`gemma4:31b-cloud`: 4/4 compile, 5/5 refusals, 12/12 content checks, avg 1 gate
-attempt). **Bundle seal live-proven too** (July 2026): full pipeline incl. real
-`npm install` + `gulp bundle` passes on Node 22.14 against SPFx 1.21.1 — the plain
-`./style.css` import works as-is; no template changes were needed. A user's real
-web part (BenchmarkCompanyCard) also built and packaged to `.sppkg` manually.
-Anthropic adapter is fully tested offline but has not had a live run yet
-(no API key on this machine so far).
+All 5 v1 milestones AND all 9 v3 steps complete; 151 offline tests. Live-proven with
+Ollama (`gemma4:31b-cloud`, 7-item corpus: 6/6 compile, 7/7 refusals, 24/24 content
+checks incl. per-part leakage checks, parts ok 2/2, avg 1 gate attempt). v3 adds
+coupling analysis → single/decompose/spa strategy (safe-direction `--strategy`
+override), context slicing, one-solution/N-web-parts emit with per-part verification
++ per-part bundle assertion, and the multi-part eval. The two-web-part corpus item
+(006) transforms, verifies, and **seals live** (gulp bundle exit 0, one bundle per
+part, Node 22.14). The v3 eval caught a real prompt failure (invented `./styles.css`
+import — compiled clean, failed webpack) and the fix shipped with A/B eval evidence.
+Bundle seal previously live-proven for v1 too; a user's real web part
+(BenchmarkCompanyCard) built and packaged to `.sppkg` manually. Anthropic adapter is
+fully tested offline but has not had a live run yet (no API key on this machine).
 
 ## Known gaps / next work (in value order)
 
@@ -78,13 +82,13 @@ Anthropic adapter is fully tested offline but has not had a live run yet
    user-approved mappings (same plugin via React wrapper vs recommended replacement),
    with version + license metadata (ag-Grid/DevExtreme are commercial — flag it). The
    plan-approval step is the designed interaction point.
-3. **v3 — multi-web-part decomposition + SPA strategy.** DO NOT design this from
-   scratch: a complete execution blueprint exists in `docs/v3/` (authored by a
-   stronger model; decisions are settled there). Start at `docs/v3/README.md`, then
-   `STATE.md` for the next step. The judgment-dense core is already built and tested:
-   `src/analyze/coupling.ts`, `StrategySchema` in plan.ts, fixtures + 7 ground-truth
-   tests in `tests/analyze/coupling.test.ts`.
-4. **v4 — more providers (OpenAI/Azure):** see `docs/v3/V4.md` (short by design).
-5. CI pipeline (GitHub Actions: typecheck + test + lint) — everything is offline-safe.
-6. Analyzer blind spot: property-style DOM mutations (`el.textContent = …`) aren't in
-   the IR (documented in src/analyze/script.ts).
+3. **v4 — more providers (OpenAI/Azure):** see `docs/v3/V4.md` (short by design).
+4. CI pipeline (GitHub Actions: typecheck + test + lint) — everything is offline-safe.
+5. Analyzer blind spots: property-style DOM mutations (`el.textContent = …`) aren't in
+   the IR (documented in src/analyze/script.ts); coupling approximations are listed in
+   README Known limitations (they all err toward the safe spa recommendation).
+
+**v3 is COMPLETE** — the blueprint in `docs/v3/` is executed; see `docs/v3/STATE.md`
+log for the step-by-step record incl. flagged interpretations and live results.
+Machine note: live bundle seals need a SHORT output path (SPFx node_modules exceeds
+Windows MAX_PATH in deep temp dirs) and Node 22.14.

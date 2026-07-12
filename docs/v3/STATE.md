@@ -1,6 +1,6 @@
 # v3 execution state
 
-**Next step:** 09
+**Next step:** — (v3 COMPLETE)
 
 **Blocked:** (nothing)
 
@@ -64,3 +64,8 @@
   **Step 07 live item CLOSED:** re-emitted 006 with the fixed prompt seals clean —
   gulp bundle exit 0 on Node 22.14, dist/ = newspanel-web-part.js +
   stockticker-web-part.js (one bundle per part, verified).
+- 2026-07-12 — Step 09 done; **v3 COMPLETE**. Final full pass: gates green (151
+  offline tests), fresh live eval 6/6 · 7/7 · 24/24 · parts 2/2 · avg 1 attempt,
+  and one end-to-end CLI decompose migration of 006 with the seal — exit 0,
+  `Bundle seal: PASSED` (incl. the per-part dist assertion). README gained the v3
+  section + coupling-approximation limitations; CLAUDE.md marks v3 complete.
