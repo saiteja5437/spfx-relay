@@ -1,9 +1,11 @@
+import { existsSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
-import { analyzeCouplingDir } from '../src/analyze/coupling';
+import { describe, expect, it, vi } from 'vitest';
+import { analyzeCoupling, analyzeCouplingDir } from '../src/analyze/coupling';
 import { analyzeWebPart } from '../src/analyze/index';
-import { migrationNameFrom, parseCliArgs, providerConfigFrom, renderPlan } from '../src/cli';
+import { main, migrationNameFrom, parseCliArgs, providerConfigFrom, renderPlan, resolveStrategy } from '../src/cli';
 import { buildPlan } from '../src/pipeline/plan';
 
 describe('parseCliArgs', () => {
@@ -49,6 +51,18 @@ describe('parseCliArgs', () => {
       noCache: false,
     });
     expect(parseCliArgs(['eval'])).toMatchObject({ command: 'eval', provider: 'anthropic', corpus: 'corpus' });
+  });
+
+  it('parses --strategy and rejects unknown values; eval never carries it', () => {
+    expect(parseCliArgs(['migrate', './x', '--out', './y', '--strategy', 'spa'])).toMatchObject({ strategy: 'spa' });
+    expect(parseCliArgs(['migrate', './x', '--out', './y', '--strategy', 'decompose'])).toMatchObject({
+      strategy: 'decompose',
+    });
+    expect(() => parseCliArgs(['migrate', './x', '--out', './y', '--strategy', 'single'])).toThrowError(
+      /Unknown strategy/,
+    );
+    // Eval stays deterministic: it always follows the recommendation.
+    expect(parseCliArgs(['eval', '--strategy', 'spa'])).not.toHaveProperty('strategy');
   });
 
   it('rejects missing input, missing --out, unknown command, unknown provider', () => {
@@ -99,6 +113,85 @@ describe('renderPlan', () => {
     const fixture = join(here, 'fixtures', 'multi-part-independent');
     const plan = buildPlan({ analysis: analyzeWebPart(fixture), name: 'multi-part-independent' });
     expect(renderPlan(plan)).not.toContain('Strategy:');
+  });
+});
+
+describe('resolveStrategy (safe-direction rule)', () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const independent = analyzeCouplingDir(join(here, 'fixtures', 'multi-part-independent'));
+  const coupled = analyzeCouplingDir(join(here, 'fixtures', 'multi-part-coupled'));
+  const single = analyzeCouplingDir(join(here, '..', 'corpus', '001-static-hello', 'input'));
+  // spa recommended purely from unattributed-lookup tolerance — zero edges.
+  const toleranceOnly = analyzeCoupling({
+    html: '<html><body>\n<div id="alpha-box"></div>\n<div id="beta-box"></div>\n</body></html>',
+    scripts: [{ file: 'app.js', code: 'var sel = window.location.hash;\n$(sel).show();\n' }],
+  });
+
+  it('defaults to the recommendation when no override is given', () => {
+    expect(resolveStrategy(independent)).toEqual({ chosen: 'decompose', notes: [] });
+    expect(resolveStrategy(coupled)).toEqual({ chosen: 'spa', notes: [] });
+    expect(resolveStrategy(single)).toEqual({ chosen: 'single', notes: [] });
+  });
+
+  it('always allows decompose → spa (merging cannot break behavior)', () => {
+    const decision = resolveStrategy(independent, 'spa');
+    expect(decision.chosen).toBe('spa');
+    expect(decision.refusal).toBeUndefined();
+  });
+
+  it('refuses spa → decompose when coupling edges exist, listing the evidence', () => {
+    const decision = resolveStrategy(coupled, 'decompose');
+    expect(decision.chosen).toBe('spa');
+    expect(decision.refusal).toContain('refused');
+    expect(decision.refusal).toContain("'cartTotal'");
+    expect(decision.refusal).toContain('cart.js:1');
+  });
+
+  it('allows spa → decompose when spa came only from tolerance, with a loud warning', () => {
+    expect(toleranceOnly.edges).toEqual([]);
+    const decision = resolveStrategy(toleranceOnly, 'decompose');
+    expect(decision.chosen).toBe('decompose');
+    expect(decision.refusal).toBeUndefined();
+    expect(decision.notes.join('\n')).toContain('WARNING');
+    expect(decision.notes.join('\n')).toContain('1 DOM lookup(s)');
+  });
+
+  it('ignores the flag on a single-region page with a printed note', () => {
+    for (const override of ['spa', 'decompose'] as const) {
+      const decision = resolveStrategy(single, override);
+      expect(decision.chosen).toBe('single');
+      expect(decision.refusal).toBeUndefined();
+      expect(decision.notes.join('\n')).toContain('ignored');
+    }
+  });
+});
+
+describe('main: refused decompose override', () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+
+  it('exits 2 (blocked), prints the edge evidence, and still writes the report', async () => {
+    const outDir = mkdtempSync(join(tmpdir(), 'spfx-relay-refuse-'));
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const code = await main([
+        'migrate',
+        join(here, 'fixtures', 'multi-part-coupled'),
+        '--out',
+        outDir,
+        '--strategy',
+        'decompose',
+        '--yes',
+        '--skip-bundle',
+      ]);
+      expect(code).toBe(2);
+      expect(error.mock.calls.flat().join('\n')).toContain("'cartTotal'");
+      expect(existsSync(join(outDir, 'migration-report.md'))).toBe(true);
+      expect(existsSync(join(outDir, 'run-manifest.json'))).toBe(true);
+    } finally {
+      log.mockRestore();
+      error.mockRestore();
+    }
   });
 });
 

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
-import { analyzeCouplingDir } from './analyze/coupling';
+import { analyzeCouplingDir, type CouplingReport } from './analyze/coupling';
 import { analyzeWebPart } from './analyze/index';
 import { emitProject } from './emit/index';
 import { runEval } from './eval/index';
@@ -32,6 +32,8 @@ export interface MigrateOptions {
   model?: string;
   /** Component name override; otherwise derived from the input folder. */
   name?: string;
+  /** Strategy override — applied through the safe-direction rule at plan time. */
+  strategy?: 'spa' | 'decompose';
   yes: boolean;
   noCache: boolean;
   skipBundle: boolean;
@@ -57,6 +59,7 @@ export function parseCliArgs(argv: string[]): CliOptions {
       provider: { type: 'string', default: 'anthropic' },
       model: { type: 'string' },
       name: { type: 'string' },
+      strategy: { type: 'string' },
       corpus: { type: 'string', default: 'corpus' },
       yes: { type: 'boolean', default: false },
       'no-cache': { type: 'boolean', default: false },
@@ -87,6 +90,10 @@ export function parseCliArgs(argv: string[]): CliOptions {
   }
   if (!input) throw new Error('Missing <input>: the folder containing the legacy web part (index.html + assets).');
   if (!values.out) throw new Error('Missing --out: the folder to emit the SPFx project into.');
+  const strategy = values.strategy === 'spa' || values.strategy === 'decompose' ? values.strategy : undefined;
+  if (values.strategy !== undefined && strategy === undefined) {
+    throw new Error(`Unknown strategy '${values.strategy}' — supported overrides: spa, decompose.`);
+  }
 
   return {
     command: 'migrate',
@@ -95,6 +102,7 @@ export function parseCliArgs(argv: string[]): CliOptions {
     provider: values.provider,
     model: values.model,
     name: values.name,
+    strategy,
     yes: values.yes,
     noCache: values['no-cache'],
     skipBundle: values['skip-bundle'],
@@ -158,6 +166,55 @@ export function renderPlan(plan: MigrationPlan): string {
   return lines.join('\n');
 }
 
+export interface StrategyDecision {
+  /** What steps 03/05/06 execute — runtime input, deliberately NOT stored in the plan. */
+  chosen: 'single' | 'decompose' | 'spa';
+  /** Set only when the override is unsafe; the run must exit blocked (2). */
+  refusal?: string;
+  /** Printed before plan approval (ignored-flag note, tolerance-override warning). */
+  notes: string[];
+}
+
+/**
+ * The safe-direction rule: merging (→ spa) can never break behavior, so it is
+ * always allowed. Splitting (→ decompose) against detected coupling edges WOULD
+ * break shared state, so it is refused — the tool cannot be forced into a guess.
+ * When spa was recommended only because too many lookups were unattributable
+ * (zero edges), the user may know the page better than static analysis: allow
+ * the split, but say loudly what the analysis could not see.
+ */
+export function resolveStrategy(coupling: CouplingReport, override?: 'spa' | 'decompose'): StrategyDecision {
+  const recommendation = coupling.recommendation;
+  if (!override || override === recommendation) return { chosen: recommendation, notes: [] };
+
+  if (recommendation === 'single') {
+    return {
+      chosen: 'single',
+      notes: [`Note: --strategy ${override} ignored — this page has at most one widget region; the single-web-part path applies.`],
+    };
+  }
+
+  if (override === 'spa') {
+    return { chosen: 'spa', notes: ['Strategy override: decompose → spa (safe direction — merging cannot break behavior).'] };
+  }
+
+  // override === 'decompose', recommendation === 'spa'
+  if (coupling.edges.length > 0) {
+    const refusal = [
+      `--strategy decompose refused: ${coupling.edges.length} coupling edge(s) tie these regions together — splitting shared state breaks the page.`,
+      ...coupling.edges.map((edge) => `  - [${edge.kind}] ${edge.from} ↔ ${edge.to} via '${edge.evidence}' (${edge.file}:${edge.line})`),
+    ].join('\n');
+    return { chosen: 'spa', refusal, notes: [] };
+  }
+
+  return {
+    chosen: 'decompose',
+    notes: [
+      `WARNING: overriding spa → decompose. ${coupling.unattributed} DOM lookup(s) could not be statically attributed to a region — the split is on YOUR judgment; verify each part against the original page.`,
+    ],
+  };
+}
+
 async function approved(yes: boolean): Promise<boolean> {
   if (yes) return true;
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -204,6 +261,14 @@ export async function main(argv: string[]): Promise<number> {
     writeRunArtifacts(outDir, { status: 'blocked', plan, manifest }, manifest);
     return 2;
   }
+
+  const decision = resolveStrategy(coupling, options.strategy);
+  if (decision.refusal) {
+    console.error(`\n${decision.refusal}`);
+    writeRunArtifacts(outDir, { status: 'blocked', plan, manifest }, manifest);
+    return 2;
+  }
+  for (const note of decision.notes) console.log(`\n${note}`);
 
   if (!(await approved(options.yes))) {
     console.log('Aborted — nothing was written.');
