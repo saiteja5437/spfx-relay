@@ -1,6 +1,6 @@
 # v3 execution state
 
-**Next step:** 07
+**Next step:** 08
 
 **Blocked:** (nothing)
 
@@ -41,3 +41,16 @@
   conditional on part-tagged steps, resolving the step's byte-identical-vs-blank-column
   contradiction in favor of byte-identity; (c) a failed multi-part run emits no project
   files (v1 nothing-unverified ethic). 145 tests green.
+- 2026-07-12 — Step 07 done (code) + live seal attempted. Interpretation flagged: the
+  combined tsc program covers all PART components in an emit-shaped scratch dir (the
+  literal "whole emitted project" cannot compile offline — SPFx types only exist after
+  the seal's npm install, the same staging reason as v1); routing/budgets exactly as
+  specified. LIVE RESULT (Node 22.14, gemma4:31b-cloud, live parts transform 1 attempt
+  each): dist/ DID contain both web-part bundles (config/manifests correct), but the
+  seal FAILED — both generated components imported './styles.css' which does not exist
+  (006 has no stylesheet; tsc's `declare module '*.css'` cannot catch a nonexistent
+  css path, webpack can). This is a prompt-content failure in the NEW part-scoped
+  prompt → the fix is step 08's eval-driven preamble iteration (mustNotContain checks
+  + preamble wording), NOT post-processing. Seal to be re-run after 08.
+  Also: live006 first attempted in the session scratchpad — SPFx node_modules exceeds
+  Windows MAX_PATH there; emitted solutions for live seals need a SHORT path.

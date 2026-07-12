@@ -10,7 +10,7 @@ import { renderMultiPartScaffold } from '../../src/emit/scaffold';
 import { cacheKey } from '../../src/pipeline/cache';
 import { buildTransformContext } from '../../src/pipeline/context';
 import { RunManifest } from '../../src/pipeline/manifest';
-import { runMultiPartTransform } from '../../src/pipeline/multipart';
+import { MultiPartVerifyError, runMultiPartTransform, type MultiPartGateChecker } from '../../src/pipeline/multipart';
 import { buildPlan } from '../../src/pipeline/plan';
 import { slicePartContexts } from '../../src/pipeline/slice';
 import { renderReport, type PartReport } from '../../src/report/index';
@@ -132,6 +132,51 @@ describe('multi-part transform loop + scaffold (offline e2e over corpus 006)', (
     expect(report).toContain('**Verified.**');
     expect(report).toContain('### StockTicker');
     expect(report).toContain('**FAILED verification.**');
+  });
+
+  it('repairs ONLY the failing part: part 1 stays at 1 attempt, part 2 records 2', async () => {
+    const { analysis, plan, parts } = fixtureArgs();
+    const { provider, calls } = scriptedProvider([
+      transformOf(component('NewsPanel')),
+      transformOf(BAD_CODE),
+      transformOf(component('StockTicker')),
+    ]);
+
+    const run = await runMultiPartTransform({ provider, plan, analysis, parts, inputDir });
+    expect(run.ok).toBe(true);
+    expect(calls).toHaveLength(3); // 2 initial + exactly one repair (part 2 only)
+    expect(run.results.map((r) => r.verified.attempts)).toEqual([1, 2]);
+    // The repair prompt carried part 2's failing code and diagnostics.
+    expect(calls[2]?.prompt).toContain('failed verification');
+    expect(calls[2]?.prompt).toContain("const n: number = 'nope';");
+  });
+
+  it('a diagnostic in a scaffold file fails LOUDLY, naming the file, with no repair call', async () => {
+    const { analysis, plan, parts } = fixtureArgs();
+    const { provider, calls } = scriptedProvider([
+      transformOf(component('NewsPanel')),
+      transformOf(component('StockTicker')),
+    ]);
+    const scaffoldError: MultiPartGateChecker = () =>
+      Promise.resolve({
+        typecheck: { ok: false, issues: [{ file: 'declarations.d.ts', line: 1, message: 'tool bug' }] },
+        lints: new Map(),
+      });
+
+    await expect(
+      runMultiPartTransform({ provider, plan, analysis, parts, inputDir, checkGates: scaffoldError }),
+    ).rejects.toThrow(MultiPartVerifyError);
+    await expect(
+      runMultiPartTransform({
+        provider: scriptedProvider([transformOf(component('NewsPanel')), transformOf(component('StockTicker'))]).provider,
+        plan,
+        analysis,
+        parts,
+        inputDir,
+        checkGates: scaffoldError,
+      }),
+    ).rejects.toThrow(/declarations\.d\.ts/);
+    expect(calls).toHaveLength(2); // initial transforms only — scaffold errors never reach a model
   });
 
   it('two parts produce two distinct cache keys (verified, not assumed)', () => {

@@ -16,7 +16,7 @@ import { SliceRefusalError, slicePartContexts, type PartContext } from './pipeli
 import { runVerifiedTransform } from './pipeline/verifiedTransform';
 import { createProvider, type ProviderConfig } from './providers/index';
 import { renderReport, type PartReport, type ReportArgs } from './report/index';
-import { runBundleSeal, type BundleResult } from './verify/bundle';
+import { runBundleSeal, verifyPartBundles, type BundleResult } from './verify/bundle';
 
 /**
  * spfx-relay migrate <input> --out <dir> [options]
@@ -342,6 +342,10 @@ export async function main(argv: string[]): Promise<number> {
     } else {
       console.log('Running the SPFx bundle seal (npm install + gulp bundle) — this can take a few minutes …');
       bundle = runBundleSeal(outDir);
+      if (bundle.status === 'passed') {
+        // A green gulp exit is not enough for N parts: every part must have a bundle.
+        bundle = verifyPartBundles(outDir, run.results.map(({ part }) => part.name.toLowerCase()));
+      }
     }
     console.log(`Bundle seal: ${bundle.status.toUpperCase()}`);
 

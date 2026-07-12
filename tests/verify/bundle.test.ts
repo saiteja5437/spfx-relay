@@ -1,6 +1,8 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { defaultRunner, runBundleSeal, type CommandResult, type CommandRunner } from '../../src/verify/bundle';
+import { defaultRunner, runBundleSeal, verifyPartBundles, type CommandResult, type CommandRunner } from '../../src/verify/bundle';
 
 function scriptedRunner(script: Record<string, CommandResult>): { runner: CommandRunner; calls: string[] } {
   const calls: string[] = [];
@@ -67,5 +69,21 @@ describe('runBundleSeal', () => {
     expect(result.status).toBe('failed');
     expect(result.detail).toContain('ERESOLVE');
     expect(calls).not.toContain(GULP_BUNDLE);
+  });
+});
+
+describe('verifyPartBundles', () => {
+  it('passes only when dist/ holds one bundle per part; names the dropped part otherwise', () => {
+    const outDir = mkdtempSync(join(tmpdir(), 'spfx-relay-dist-'));
+    mkdirSync(join(outDir, 'dist'));
+    writeFileSync(join(outDir, 'dist', 'newspanel-web-part_en-us_abc123.js'), '// bundle');
+
+    const missing = verifyPartBundles(outDir, ['newspanel', 'stockticker']);
+    expect(missing.status).toBe('failed');
+    expect(missing.detail).toContain('stockticker');
+    expect(missing.detail).not.toContain('newspanel-web-part,'); // only the dropped part is named
+
+    writeFileSync(join(outDir, 'dist', 'stockticker-web-part_en-us_def456.js'), '// bundle');
+    expect(verifyPartBundles(outDir, ['newspanel', 'stockticker']).status).toBe('passed');
   });
 });

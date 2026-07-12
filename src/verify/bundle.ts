@@ -1,4 +1,6 @@
 import { spawnSync } from 'node:child_process';
+import { existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import type { VerifyResult } from './types';
 
 /**
@@ -61,6 +63,29 @@ export function runBundleSeal(outDir: string, runner: CommandRunner = defaultRun
   }
 
   return { status: 'passed', detail: 'npm install and gulp bundle completed successfully.' };
+}
+
+/**
+ * v3 step 07: after a passing seal on a multi-part solution, assert dist/
+ * holds one bundle per part — a part silently dropped by webpack (a
+ * misconfigured `bundles` entry) is a real failure mode a green gulp exit
+ * code does not catch.
+ */
+export function verifyPartBundles(outDir: string, partLowerNames: string[]): BundleResult {
+  const dist = join(outDir, 'dist');
+  const files = existsSync(dist) ? readdirSync(dist) : [];
+  const missing = partLowerNames.filter(
+    (lower) => !files.some((file) => file.startsWith(`${lower}-web-part`) && file.endsWith('.js')),
+  );
+  if (missing.length > 0) {
+    return {
+      status: 'failed',
+      detail:
+        `gulp bundle exited green but dist/ has no bundle for: ${missing.join(', ')} — ` +
+        'a part was silently dropped by webpack; check config.json bundles entries.',
+    };
+  }
+  return { status: 'passed', detail: `npm install and gulp bundle completed; dist/ holds one bundle per part (${partLowerNames.length}).` };
 }
 
 export function bundleAsVerify(result: BundleResult): VerifyResult {

@@ -66,7 +66,8 @@ export const defaultGateChecker: GateChecker = async (componentName, componentCo
   return { typecheck, lint };
 };
 
-function formatGateFeedback(componentCode: string, gates: GateResults): string {
+/** Exported for the v3 multi-part loop — identical feedback wording per part. */
+export function formatGateFeedback(componentCode: string, gates: GateResults): string {
   const sections = ['Your previously generated component failed verification.', '', 'Code you produced:', '```tsx', componentCode, '```'];
   if (!gates.typecheck.ok) {
     sections.push('', 'TypeScript errors (strict mode):');
